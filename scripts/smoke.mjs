@@ -95,6 +95,14 @@ for (const [vpName, viewport] of [
     await page.keyboard.press("Escape");
   } else errors.push(`[${vpName}] no soop hotspot found on arghya scene`);
 
+  // Realistic characters from the shipped manifest (not the CI fixture) must actually mount.
+  const live = JSON.parse(fs.readFileSync("out/models/manifest.json", "utf8"));
+  if (live.clips && Object.keys(live.characters ?? {}).length) {
+    const n = await page.evaluate(() => window.__riggedCharacters ?? 0);
+    console.log(`${vpName} live rigged characters on arghya scene = ${n}`);
+    if (!n) errors.push(`[${vpName}] realistic characters did not mount on the arghya scene`);
+  }
+
   // Language switch
   if (viewport.width < 640) await page.getByRole("button", { name: "मेनू" }).click().catch(() => errors.push(`[${vpName}] no menu button`));
   await page.getByRole("button", { name: "English" }).first().click().catch(() => errors.push(`[${vpName}] no English button`));

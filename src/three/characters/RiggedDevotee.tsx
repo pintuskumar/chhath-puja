@@ -24,9 +24,10 @@ const LEFT_GRIP = ["hand_l_grip", "hand_l", "mixamorigLeftHand", "LeftHand"];
 const HEAD = ["head", "mixamorigHead", "Head"];
 
 /** Default attachment bone per held item. */
-const HOLD_BONE: Record<Exclude<HoldId, "none">, "right" | "left" | "head"> = {
-  soop: "right",
-  "soop-filled": "right",
+const HOLD_BONE: Record<Exclude<HoldId, "none">, "right" | "left" | "head" | "both"> = {
+  // the soop is held level in both hands → socket between the two palms
+  soop: "both",
+  "soop-filled": "both",
   lota: "right",
   daura: "head",
   broom: "right",
@@ -159,6 +160,60 @@ function BoneSocket({ bone, offset, children }: { bone: THREE.Object3D; offset?:
   );
 }
 
+/**
+ * Socket midway between both grip bones, x-axis along right→left hand, y-axis up.
+ * Lives in the actor's root space (not under a bone), so it has metre scale.
+ */
+function BothHandsSocket({
+  left,
+  right,
+  root,
+  afterMix,
+  offset,
+  children,
+}: {
+  left: THREE.Object3D;
+  right: THREE.Object3D;
+  root: { current: THREE.Group | null };
+  afterMix: Set<() => void>;
+  offset?: PropOffset;
+  children: ReactNode;
+}) {
+  const g = useRef<THREE.Group>(null);
+  const t = useMemo(
+    () => ({ l: new THREE.Vector3(), r: new THREE.Vector3(), x: new THREE.Vector3(), y: new THREE.Vector3(), z: new THREE.Vector3(), m: new THREE.Matrix4() }),
+    [],
+  );
+  useEffect(() => {
+    const update = () => {
+      const n = g.current;
+      const base = root.current;
+      if (!n || !base) return;
+      left.getWorldPosition(t.l);
+      right.getWorldPosition(t.r);
+      base.worldToLocal(t.l);
+      base.worldToLocal(t.r);
+      n.position.copy(t.l).add(t.r).multiplyScalar(0.5);
+      t.x.subVectors(t.l, t.r);
+      if (t.x.lengthSq() < 1e-8) return;
+      t.x.normalize();
+      t.y.set(0, 1, 0).addScaledVector(t.x, -t.x.y).normalize();
+      t.z.crossVectors(t.x, t.y);
+      n.quaternion.setFromRotationMatrix(t.m.makeBasis(t.x, t.y, t.z));
+    };
+    // runs right after the mixer has posed the skeleton (same frame, no lag)
+    afterMix.add(update);
+    return () => void afterMix.delete(update);
+  }, [afterMix, left, right, root, t]);
+  return (
+    <group ref={g}>
+      <group position={offset?.position ?? [0, 0, 0]} rotation={offset?.rotation ?? [0, 0, 0]}>
+        {children}
+      </group>
+    </group>
+  );
+}
+
 interface Props {
   get: () => ActorState | undefined;
   spec: CharacterSpec;
@@ -226,6 +281,7 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality }: Props) 
   );
 
   const root = useRef<THREE.Group>(null);
+  const afterMix = useMemo(() => new Set<() => void>(), []);
   const holds = useRef<Partial<Record<HoldId, THREE.Group | null>>>({});
   const stream = useRef<THREE.Mesh>(null);
   const current = useRef<{ name: string; action: THREE.AnimationAction } | null>(null);
@@ -277,6 +333,8 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality }: Props) 
     if (cur) cur.action.timeScale = LOCOMOTION.includes(cur.name as ClipName) ? THREE.MathUtils.clamp(speed / manifest.walkSpeed, 0.6, 1.6) : 1;
     // Reduced motion: hold the pose (first frame of each clip), no looping motion.
     mixer.update(reduced ? 0 : delta);
+    g.updateMatrixWorld(true);
+    for (const f of afterMix) f();
 
     for (const [h, node] of Object.entries(holds.current)) if (node) node.visible = h === s.hold;
     if (stream.current) stream.current.visible = !!s.stream;
@@ -289,7 +347,21 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality }: Props) 
       </group>
       {(Object.keys(HOLD_BONE) as Exclude<HoldId, "none">[]).map((h) => {
         const offset = spec.props?.[h];
-        const bone = (offset?.bone && model.getObjectByName(offset.bone)) || bones[HOLD_BONE[h]];
+        const where = HOLD_BONE[h];
+        const content = (
+          <group ref={(n) => void (holds.current[h] = n)} visible={false}>
+            <HeldProp hold={h} />
+          </group>
+        );
+        if (where === "both" && !offset?.bone) {
+          if (!bones.left || !bones.right) return null;
+          return (
+            <BothHandsSocket key={h} left={bones.left} right={bones.right} root={root} afterMix={afterMix} offset={offset}>
+              {content}
+            </BothHandsSocket>
+          );
+        }
+        const bone = (offset?.bone && model.getObjectByName(offset.bone)) || (where === "both" ? bones.right : bones[where]);
         if (!bone) return null;
         return (
           <BoneSocket key={h} bone={bone} offset={offset}>
