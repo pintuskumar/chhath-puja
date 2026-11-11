@@ -227,6 +227,13 @@ def head(pitch_deg=0.0, yaw=0.0):
         turn("Head", UP, yaw)
 
 
+def pelvis(deg):
+    """Forward bend at the hip joints (where most of a real bow/sweep comes from).
+    Call before legs_stand: legs are re-aimed in world space so the feet stay put."""
+    if deg:
+        turn("Hips", X, deg)
+
+
 def legs_stand(spread=0.0, knee=0.0):
     if knee:  # bent knees lower the hips so the feet stay on the ground
         shift("Hips", (0, 0, -ground_drop(knee * 0.5, knee, knee * 0.5, knee)))
@@ -457,11 +464,12 @@ def c_stir(t):
 
 
 def c_sweep(t):
-    shift("Hips", (0, 0.03, 0))
+    shift("Hips", (0, 0.08, 0))  # hips back to balance the bent trunk
+    pelvis(45)
     legs_stand(spread=0.06, knee=30)
     sw = math.sin(2 * math.pi * t)
-    spine(fwd=50, twist=-6 * sw)
-    head(pitch_deg=-12)
+    spine(fwd=22, twist=-6 * sw)
+    head(pitch_deg=-25)
     hip = wpos("Hips")
     two_bone("RightArm", "RightForeArm", front_of(Vector((hip.x, hip.y, FOOT_Z)), 0.38, 0.42, -0.05 + 0.22 * sw), Vector((-1, 0.4, -0.3)))
     orient_hand("Right", Vector((0.15 * sw, -0.3, -1)), FWD)
@@ -476,10 +484,11 @@ def c_bow(t):
     # stand → bend to touch the feet of the person in front → hold → rise
     k = min(1.0, max(0.0, (t - 0.15) / 0.25)) if t < 0.6 else max(0.0, 1 - (t - 0.6) / 0.3)
     k = 0.5 - 0.5 * math.cos(math.pi * k)
-    shift("Hips", (0, 0.06 * k, 0))
+    shift("Hips", (0, 0.12 * k, 0))
+    pelvis(58 * k)
     legs_stand(spread=0.03, knee=35 * k)
-    spine(fwd=75 * k)
-    head(pitch_deg=10 * k)
+    spine(fwd=28 * k)
+    head(pitch_deg=-5 * k)
     hip = wpos("Hips")
     if k > 0.05:
         g = front_of(Vector((hip.x, hip.y, FOOT_Z)), 0.45, 0.12)
