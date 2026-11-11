@@ -1,0 +1,49 @@
+name: Build self-hosted fonts
+
+# One-off: fetch the OFL fonts from the google/fonts GitHub repo, subset them to
+# Devanagari + basic Latin (all OpenType layout features kept for conjunct shaping),
+# and emit WOFF2 files to commit under src/app/fonts/. Removes the build-time
+# dependency on fonts.googleapis.com (next/font/google).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fonts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "fonttools[woff]==4.*" brotli
+      - name: Fetch
+        run: |
+          set -e
+          base=https://raw.githubusercontent.com/google/fonts/main/ofl
+          for i in 1 2 3 4 5; do
+            curl -fsSL -o noto.ttf "$base/notosansdevanagari/NotoSansDevanagari%5Bwdth,wght%5D.ttf" &&
+            curl -fsSL -o tiro.ttf "$base/tirodevanagarihindi/TiroDevanagariHindi-Regular.ttf" &&
+            curl -fsSL -o OFL-noto.txt "$base/notosansdevanagari/OFL.txt" &&
+            curl -fsSL -o OFL-tiro.txt "$base/tirodevanagarihindi/OFL.txt" && break
+            sleep 10
+          done
+          ls -la
+      - name: Subset
+        run: |
+          set -e
+          U="U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0900-097F,U+1CD0-1CFF,U+2000-206F,U+20A8,U+20B9,U+20AC,U+2122,U+2190-2193,U+2212,U+2215,U+25CC,U+A830-A839,U+A8E0-A8FF,U+FEFF,U+FFFD"
+          # pin the width axis (normal) and keep the weight axis only over the range the site uses
+          fonttools varLib.instancer noto.ttf wdth=100 wght=400:700 -o noto-wght.ttf
+          mkdir -p out
+          pyftsubset noto-wght.ttf --unicodes="$U" --layout-features='*' --flavor=woff2 --output-file=out/NotoSansDevanagari-wght.woff2
+          pyftsubset tiro.ttf --unicodes="$U" --layout-features='*' --flavor=woff2 --output-file=out/TiroDevanagariHindi-Regular.woff2
+          cp OFL-noto.txt out/OFL-NotoSansDevanagari.txt
+          cp OFL-tiro.txt out/OFL-TiroDevanagariHindi.txt
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fonts
+          path: out/

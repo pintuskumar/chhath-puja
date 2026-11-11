@@ -151,8 +151,10 @@ for eo in [o for o in keep if o.type == "MESH" and "low-poly" in o.name.lower()]
             r, g, b = px[:, 0], px[:, 1], px[:, 2]
             red = (r > 1.3 * g) & (r > 1.3 * b) & (r > 0.08)
             lum = 0.3 * r + 0.59 * g + 0.11 * b
-            brown = np.array([1.4, 0.9, 0.55], dtype=np.float32)
-            px[red, :3] = np.clip(lum[red, None] * 0.8 * brown, 0, 1)
+            # saturated warm brown at the same luminance (AgX desaturates; a mild tint read grey)
+            brown = np.array([0.36, 0.20, 0.09], dtype=np.float32)
+            k = lum[red, None] / (0.3 * 0.36 + 0.59 * 0.20 + 0.11 * 0.09)
+            px[red, :3] = np.clip(k * 0.95 * brown, 0, 1)
             img.pixels.foreach_set(px.ravel())
             img.pack()
             img["rehued"] = True
