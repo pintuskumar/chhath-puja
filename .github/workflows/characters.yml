@@ -85,11 +85,17 @@ jobs:
           [ -s mh_assets.zip ] && unzip -qo mh_assets.zip -d "$DATA" || echo "no asset pack to install"
           ls "$DATA" | head -30
 
-      - name: Generate probe character
-        timeout-minutes: 15
+      - name: Build characters
+        timeout-minutes: 40
         run: |
           mkdir -p "$CHAR_OUT"
-          $BLENDER --background --python characters/blender/probe_human.py 2>&1 | grep -E "\[chhath\]|Error|Traceback|File \"" | head -120
+          for id in $(python3 -c "import json;print(' '.join(json.load(open('characters/specs.json'))))"); do
+            echo "::group::$id"
+            $BLENDER --background --python characters/blender/build_character.py -- "$id" "$CHAR_OUT" 2>&1 \
+              | grep -E "\[chhath\]|Error|Traceback|File \"|line [0-9]+" | head -80
+            echo "::endgroup::"
+          done
+          ls -la "$CHAR_OUT"
 
       - uses: actions/upload-artifact@v4
         if: always()
