@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { Noto_Sans_Devanagari, Tiro_Devanagari_Hindi } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -8,21 +8,22 @@ import { ClientBoot } from "@/components/ClientBoot";
 import { SkipLink } from "@/components/layout/SkipLink";
 import { SITE_URL, asset } from "@/lib/paths";
 
-// Noto Sans Devanagari covers both Devanagari and Latin, so one family serves Hindi and English.
-// Only the Devanagari subset is preloaded; Latin glyphs load on demand via unicode-range.
-const devanagari = Noto_Sans_Devanagari({
-  subsets: ["devanagari"],
-  weight: ["400", "600", "700"],
+// Self-hosted (OFL, see src/app/fonts/OFL-*.txt; built by .github/workflows/fonts.yml) so a
+// Google Fonts outage can never break the build. Subset to Devanagari + basic Latin with all
+// OpenType layout features (conjunct shaping). Noto Sans is one variable file for 400–700.
+const devanagari = localFont({
+  src: [{ path: "./fonts/NotoSansDevanagari-wght.woff2", weight: "400 700", style: "normal" }],
   variable: "--font-hindi",
   display: "swap",
+  fallback: ["Mukta", "system-ui", "sans-serif"],
 });
 // Decorative headings: not preloaded, so it never competes with first paint.
-const display = Tiro_Devanagari_Hindi({
-  subsets: ["devanagari"],
-  weight: "400",
+const display = localFont({
+  src: [{ path: "./fonts/TiroDevanagariHindi-Regular.woff2", weight: "400", style: "normal" }],
   variable: "--font-display",
   display: "swap",
   preload: false,
+  fallback: ["serif"],
 });
 
 export const metadata: Metadata = {

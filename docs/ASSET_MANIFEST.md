@@ -91,3 +91,12 @@ Procedural, defined in `src/three/choreography.ts` (positions/paths) and `src/th
 |---|---|
 | `public/favicon.svg` | ✅ |
 | Open Graph image `public/og.png` (1200×630) | 🟡 — needs a rendered still of the ghat scene |
+
+## Fonts (self-hosted)
+
+| File | Purpose | Format | Size | Status / licence |
+|---|---|---|---|---|
+| `src/app/fonts/NotoSansDevanagari-wght.woff2` | Body text, Hindi + English (variable weight 400–700, width pinned to normal) | WOFF2, subset Devanagari + basic Latin, all layout features | 97 KB, preloaded | ✅ built by `.github/workflows/fonts.yml` from `google/fonts` · **SIL OFL 1.1** (`OFL-NotoSansDevanagari.txt`) |
+| `src/app/fonts/TiroDevanagariHindi-Regular.woff2` | Decorative headings | WOFF2, same subset | 127 KB, not preloaded | ✅ same workflow · **SIL OFL 1.1** (`OFL-TiroDevanagariHindi.txt`) |
+
+The build no longer contacts Google Fonts, so a fonts outage can't fail CI or Vercel.
