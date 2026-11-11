@@ -172,12 +172,16 @@ def weave_images(name, rgb, size=512, threads=28, stripe=None):
     nrm = n * 0.5 + 0.5
     imgs = []
     for tag, arr in (("col", col), ("nrm", nrm)):
-        img = bpy.data.images.new(f"{SPEC_ID}_{name}_{tag}", size, size, alpha=False)
-        rgba = np.concatenate([arr, np.ones((size, size, 1), np.float32)], -1)[::-1]
-        img.pixels.foreach_set(rgba.astype(np.float32).ravel())
+        img = bpy.data.images.new(f"{SPEC_ID}_{name}_{tag}", size, size, alpha=True)
         if tag == "nrm":
             img.colorspace_settings.name = "Non-Color"
+        rgba = np.ascontiguousarray(np.concatenate([arr, np.ones((size, size, 1), np.float32)], -1)[::-1], dtype=np.float32)
+        img.pixels.foreach_set(rgba.ravel())
+        img.update()
         img.pack()
+        chk = np.empty(size * size * 4, dtype=np.float32)
+        img.pixels.foreach_get(chk)
+        log(f"texture {img.name}: mean {chk.reshape(-1, 4)[:, :3].mean(axis=0).round(3)} packed={bool(img.packed_file)}")
         imgs.append(img)
     return imgs
 
