@@ -23,7 +23,8 @@ Format policy: **GLB** (Draco or Meshopt + KTX2 textures) for 3D, **SVG** for di
 |---|---|---|---|---|---|
 | `src/three/Devotee.tsx` (`LOOKS`) | Vratis (yellow / saffron / red saree, pallu on head), elder, men in dhoti-kurta with gamchha, child | Procedural | ~20 meshes each | ✅ code | Common Chhath attire; long sindoor noted in text only |
 | Crowd silhouettes (`GhatEnvironment › Crowd`) | Distant devotees | Instanced lathe + sphere | 2 draw calls | ✅ code | Mixed saree colours |
-| `public/models/characters/vrati.glb` etc. | Rigged stylised characters | GLB, ≤ 6k tris, 1 × 1k texture | ≤ 400 KB each | 🟡 artist | Gestures limited to those in `POSES`; review by community before release |
+| `src/three/Devotee.tsx` (`LOOKS`) → now the **fallback** | Used only if a GLB fails to load or the manifest is emptied | Procedural | ~20 meshes each | ✅ code | — |
+| `public/models/characters/{vrati_a,vrati_b,vrati_c,elder,man_dhoti,young_man,child}.glb` | Rigged characters (Mixamo skeleton, fingers, grip sockets), generated garments with cotton weave, cloth-simulated drape | GLB, Meshopt + WebP 1024 | 24k tris (child 17.5k) · 0.61–0.71 MB each | ✅ generated in CI by `characters/blender/build_character.py` · **MakeHuman/MPFB, CC0** | Saree with pallu over the head, bindi + sindoor for the vratis; dhoti/kurta + gamchha; see `docs/VISUAL_AUDIT.md §8` |
 
 ## 3. Ritual props (3D)
 
@@ -71,7 +72,9 @@ Procedural, defined in `src/three/choreography.ts` (positions/paths) and `src/th
 
 `clean, bath, cook, meal, prepare-next, fast-rest, kharna-cook, evening-puja, prasad-receive, nirjala, arrange-soop, procession, ghat-arrange, stand-in-water, arghya, evening-close, dawn-gather, dawn-arrive, usha-arghya, blessing, paran` — ✅
 
-🟡 Production: motion-captured or hand-keyed clips in the character GLBs (`walk`, `carry_daura`, `hold_soop`, `raise_soop`, `pour_lota`, `namaste`, `sit`, `stir`, `bow`). **Every clip must be reviewed by practitioners; no invented ceremonial movements.**
+✅ Skeletal clips: `public/models/anims/chhath_clips.glb` (0.57 MB, 16 clips, CC0), **keyframed** by `characters/blender/build_clips.py` on the shared skeleton and retargeted per character at runtime: `idle_stand, walk_barefoot, walk_steps_down, carry_daura_walk, carry_daura_idle, stand_in_water_idle, soop_hold, soop_raise_arghya, lota_pour, namaste, sit_crosslegged, sit_eat, stir_chulha, sweep, bow_touch_feet, give_prasad`. Ritual postures are simple static holds, not invented choreography.
+
+🟡 Still wanted: motion capture of a vrati for the arghya and walking clips, reviewed by practitioners. Drop-in replacement with the same clip names.
 
 ## 8. Audio
 

@@ -8,8 +8,13 @@
     fringe over eye, pallu snapping to arm, drapes tearing when arms raise
   - open: head drape still reads as a stiff hood (straight front edges); skirt is a clean tube
     without real drape; no fabric texture yet; GLB 13 MB / 50k tris (budget 3.5 MB / 25k)
-- [ ] Round 2: remaining people (vrati_b, vrati_c, elder, man_dhoti, young_man, child)
-- [ ] Round 3: decimate to budgets, clips (idle / walk / water idle / namaste / sit), integrate, before/after
+- [x] Round 2: cotton weave textures, cloth simulation (two stages: inner layers, then kurta hem + gamchha
+  over them), decimation to 24k tris, Meshopt + WebP (~0.65 MB each), all seven people
+  - fixed: kurta hem / pyjama poke-through, rigid gamchha (simulation had been dropped by a refactor),
+    waist rims (skirts now snug at the waistband), sleeve slivers at the wrists, braid through the pallu
+- [x] Round 3: 16 keyframed clips (`build_clips.py`, review sheet `docs/characters/clips_sheet.png`),
+  runtime retargeting, two-hand soop socket, live on the site, before/after in `docs/VISUAL_AUDIT.md §8`
+  - fixed: finished NLA tracks leaking into the next clip's first key (corrupted loop frame)
 
 ## Probe findings
 - Skins available: young/middleage/old × african/asian/caucasian (+ male/female). No South Asian preset
@@ -20,7 +25,7 @@
 - Rig "mixamo" gives `mixamorig:*` bones incl. fingers. glTF export strips ":" → `mixamorigLeftHand`
   (RiggedDevotee already looks for `mixamorigRightHand`).
 
-## Garment approach (no cloth sim — deterministic, skinned for free)
+## Garment approach (generated, skinned from the body; cloth-simulated drape in round 2)
 1. **Blouse** = copy of the body mesh, keep faces weighted to Spine*/Shoulder/upper Arm, push out along
    normals 4 mm. Same vertex groups as body → already skinned.
 2. **Petticoat + saree skirt** = generated tube from waist to ankle with front pleats (radial sine

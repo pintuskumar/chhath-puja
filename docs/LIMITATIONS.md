@@ -3,8 +3,9 @@
 Honest status of what is and isn't finished.
 
 ## Visual assets
-- **All 3D is procedural low-poly**, built from primitives in code (`src/three/`). It is stylised, labelled as such in the UI, and intentionally simple; it is not a photoreal recreation. No artist-made GLB models, rigged characters or mocap animations exist yet — see the 🟡 rows in [ASSET_MANIFEST.md](ASSET_MANIFEST.md).
-- **Characters** have no faces, fingers or cloth simulation; hand positions are approximate. Gestures are deliberately limited to simple, documented postures.
+- **Environments and props are procedural low-poly**, built from primitives in code (`src/three/`). They are stylised, not a photoreal recreation.
+- **Characters are rigged MakeHuman/MPFB models (CC0)** generated in CI. They are realistic in proportion, with hands, faces and cloth-simulated garments, but **not photoreal**: faces are generic, skin is tinted from a non-South-Asian preset, and the garments are generated rather than tailored. See [VISUAL_AUDIT.md §8](VISUAL_AUDIT.md).
+- **Animation clips are keyframed, not motion-captured.** Ritual postures are simple static holds. There is no foot IK on the steps and no finger-level grip on props.
 - **Water reflections are stylised** (sky + sun glitter + lamp shimmer + ripples). Devotees and diyas are not mirrored in the water.
 - **No photography.** `imagePath` is optional in the data model and currently unused; object views are SVG illustrations or procedural 3D.
 - **No Open Graph image** (social previews show title/description only).

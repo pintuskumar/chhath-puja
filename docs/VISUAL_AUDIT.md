@@ -121,3 +121,40 @@ The existing hotspots, panels, scroll story, controls, language, audio and progr
 | `vrati_a.glb` + core clips (MetaHuman, saree, mocap) | ⏳ **waiting on you** |
 | Hand IK, foot IK on steps, wet-saree material | ⏳ after the first real asset (needs the real skeleton to tune) |
 | Before/after Sandhya Arghya with identical cameras | ⏳ after the first real asset |
+
+## 8. Result: the MakeHuman / MPFB route (shipped)
+
+Route A needed Unreal Engine and Blender on your machine, which you couldn't install, so I switched to **MakeHuman via MPFB (CC0)** and generated everything headlessly in Blender on GitHub Actions (`.github/workflows/characters.yml`). See [`characters/NOTES.md`](../characters/NOTES.md).
+
+### Before / after: Day 3 · scene 5 · संध्या अर्घ्य (camera `ghat-closeup`, sun at 4:55 pm)
+
+| Before (procedural, commit `4eea7df`) | After (rigged MPFB characters + keyframed clips) |
+|---|---|
+| ![before](audit/before-sandhya-arghya-desktop.png) | ![after](audit/after-sandhya-arghya-desktop.png) |
+| ![before mobile](audit/before-sandhya-arghya-mobile.png) | ![after mobile](audit/after-sandhya-arghya-mobile.png) |
+
+Both frames come from the CI smoke test (`scripts/smoke.mjs`) on the same URL and camera preset. The after frame pins the sun slider to 16.9 h, so the only change is the characters.
+
+### Exactly what was replaced
+
+| Role (`LookId`) | Before | After (`public/models/…`) | Size · tris |
+|---|---|---|---|
+| `vrati` | `Devotee` procedural, 16 primitives | `characters/vrati_a.glb`: yellow saree with red border, blouse, pallu, head drape, bindi, sindoor | 0.61 MB · 24.0k |
+| `vrati2`, `woman` | procedural | `characters/vrati_b.glb`: saffron saree | 0.67 MB · 24.0k |
+| `vrati3` | procedural | `characters/vrati_c.glb`: red saree with gold border | 0.62 MB · 24.0k |
+| `elder` | procedural | `characters/elder.glb`: maroon saree, grey hair | 0.68 MB · 24.0k |
+| `man` | procedural | `characters/man_dhoti.glb`: kurta, dhoti, gamchha | 0.62 MB · 24.0k |
+| `youngman` | procedural | `characters/young_man.glb`: saffron kurta, pyjama | 0.63 MB · 24.0k |
+| `child` | procedural | `characters/child.glb`: blue kurta, pyjama | 0.71 MB · 17.5k |
+| all animation | sine-wave limb rotation on primitives | `anims/chhath_clips.glb`: 16 clips on the shared Mixamo skeleton | 0.57 MB |
+
+What each character has: a skinned body with fingers and a `mixamorig:*` skeleton, plus `hand_r_grip`/`hand_l_grip` sockets. Garments are generated, cloth-simulated and skinned to the same skeleton. The cotton weave is in the base colour and normal maps. Files use Meshopt + WebP at 1024 px. The soop sits in a socket between both palms.
+
+Clips: `idle_stand, walk_barefoot, walk_steps_down, carry_daura_walk, carry_daura_idle, stand_in_water_idle, soop_hold, soop_raise_arghya, lota_pour, namaste, sit_crosslegged, sit_eat, stir_chulha, sweep, bow_touch_feet, give_prasad`. Each clip is retargeted per character at runtime: rotations are deltas from rest, and only the hips translate (scaled to hip height). Review sheet: [`characters/clips_sheet.png`](characters/clips_sheet.png).
+
+### Honest limits
+
+* **Not photoreal.** MakeHuman bodies and skin are a clear step above primitives, but faces are generic, skin shading is simple, and there is no South Asian skin preset (the skin is tinted from the closest one).
+* **Clips are keyframed, not motion-captured.** Poses are authored from world-space limb directions plus 2-bone IK, the walk keeps its feet grounded, and every clip loops seamlessly. The ritual postures (holding/raising the soop, namaste, bowing) are deliberately simple and static, not invented choreography. They should still be reviewed by someone who performs the vrat.
+* No foot IK on the ghat steps, no wet-saree shader, and no per-finger grip on the lota/soop handles yet.
+* `child.glb` is 17.5k triangles against a 15k budget (validator warning). The decimation ratio is already at its floor, so the garments need fewer polygons.
