@@ -40,6 +40,23 @@ export function Footer() {
         </nav>
         <p className="text-sm leading-relaxed text-cream/80">{t("footerNote")}</p>
       </div>
+      <div className="border-t border-cream/10">
+        <p className="mx-auto max-w-7xl px-5 py-4 text-center text-sm text-cream/75">
+          {t("madeWith")}{" "}
+          <span aria-hidden="true" className="mx-1 text-cream/40">
+            |
+          </span>{" "}
+          {t("builtBy")}{" "}
+          <a
+            href="https://github.com/pintu544"
+            target="_blank"
+            rel="noopener noreferrer author"
+            className="font-semibold text-gold underline-offset-4 hover:underline"
+          >
+            pintu544
+          </a>
+        </p>
+      </div>
     </footer>
   );
 }

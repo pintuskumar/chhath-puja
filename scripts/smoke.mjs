@@ -144,6 +144,12 @@ for (const [vpName, viewport] of [
     const credit = await page.locator('[data-testid="photo-closeup"] figcaption').innerText().catch(() => "");
     if (!/CC BY|पारिवारिक|family/.test(credit)) errors.push(`[${vpName}] close-up photo has no credit/licence`);
     await wait(1200);
+    const shifted = await page.evaluate(() =>
+      [document.scrollingElement, ...document.querySelectorAll("*")]
+        .filter((e) => e && e.scrollLeft > 0)
+        .map((e) => `${e.tagName.toLowerCase()}.${String(e.className).split(" ").slice(0, 3).join(".")} scrollLeft=${e.scrollLeft}`),
+    );
+    if (shifted.length) console.log(`${vpName} horizontally scrolled after close-up click:`, shifted);
     await shot(page, `${vpName}-sandhya-arghya-photo-closeup`);
     await page.getByRole("button", { name: "पूरा दृश्य" }).first().click({ timeout: 10000 });
     await wait(800);

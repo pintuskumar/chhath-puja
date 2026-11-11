@@ -134,6 +134,8 @@ export const ui = {
   },
   sceneDescription: { hi: "दृश्य विवरण", en: "Scene description" },
   hotspotsHidden: { hi: "दृश्य बिंदु", en: "Hotspots" },
+  madeWith: { hi: "❤️ और श्रद्धा से बनाया", en: "Made with ❤️ & devotion" },
+  builtBy: { hi: "निर्माता", en: "Built by" },
   realPhoto: { hi: "असली तस्वीर", en: "Real photograph" },
   photo: { hi: "फ़ोटो", en: "Photo" },
   familyPhoto: { hi: "पारिवारिक संग्रह", en: "family collection" },
