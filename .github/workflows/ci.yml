@@ -30,7 +30,8 @@ jobs:
       - name: Build (static export, root path — used for Lighthouse)
         env:
           NEXT_PUBLIC_SITE_URL: http://localhost
-        run: npm run build
+        # unmangled names make smoke-test stack traces readable
+        run: npx next build --no-mangling
       - uses: actions/upload-artifact@v4
         with:
           name: site-root

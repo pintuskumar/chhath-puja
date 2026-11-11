@@ -25,7 +25,7 @@ async function session(name, viewport, renderer, extra) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1, hasTouch: viewport.width < 600 });
   await ctx.addInitScript((v) => localStorage.setItem("chhath-mahaparv-prefs", v), prefs(renderer, extra));
   const page = await ctx.newPage();
-  page.on("pageerror", (e) => errors.push(`[${name}] pageerror ${page.url()}: ${e.message}\n      ${(e.stack ?? "").split("\n").slice(1, 8).join("\n      ")}`));
+  page.on("pageerror", (e) => errors.push(`[${name}] pageerror ${page.url()}: ${e.message}\n      ${(e.stack ?? "").split("\n").slice(1, 16).join("\n      ")}`));
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(`[${name}] console.error ${page.url()}: ${m.text().slice(0, 300)}`);
   });
