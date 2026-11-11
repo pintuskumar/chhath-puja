@@ -105,8 +105,20 @@ for (const [vpName, viewport] of [
 
   // Before/after comparison frame: same scene + camera (ghat-closeup) as docs/audit/before-*,
   // with the sun pinned to the before frame's 4:55 pm so only the characters differ.
-  await page.goto(`${BASE}/day/sandhya-arghya/#sandhya-arghya`, { waitUntil: "networkidle", timeout: 90000 });
-  await wait(6000);
+  // Reproduce exactly how the before frame was taken: open the day, scroll to scene 5.
+  await page.goto(`${BASE}/day/sandhya-arghya/`, { waitUntil: "networkidle", timeout: 90000 });
+  await wait(5000);
+  await page.evaluate(() => {
+    const el = document.querySelector('[data-scene-index="4"]');
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.3, behavior: "instant" });
+  });
+  // the procedural figures are only the loading fallback → wait for the real models
+  const mounted = await page
+    .waitForFunction(() => (window.__riggedCharacters ?? 0) >= 3, null, { timeout: 90000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!mounted) errors.push(`[${vpName}] comparison frame: realistic characters did not mount`);
+  await wait(3500);
   const pinned = await page.evaluate(() => {
     const el = [...document.querySelectorAll('input[type="range"]')].find((e) => Number(e.max) > 12);
     if (!el) return false;
