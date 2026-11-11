@@ -25,7 +25,7 @@ async function session(name, viewport, renderer, extra) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1, hasTouch: viewport.width < 600 });
   await ctx.addInitScript((v) => localStorage.setItem("chhath-mahaparv-prefs", v), prefs(renderer, extra));
   const page = await ctx.newPage();
-  page.on("pageerror", (e) => errors.push(`[${name}] pageerror ${page.url()}: ${e.message}`));
+  page.on("pageerror", (e) => errors.push(`[${name}] pageerror ${page.url()}: ${e.message}\n      ${(e.stack ?? "").split("\n").slice(1, 8).join("\n      ")}`));
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(`[${name}] console.error ${page.url()}: ${m.text().slice(0, 300)}`);
   });
@@ -59,9 +59,12 @@ for (const [vpName, viewport] of [
       await page.locator(`[data-scene-index="${i}"]`).scrollIntoViewIfNeeded();
       await page.evaluate((i) => {
         const el = document.querySelector(`[data-scene-index="${i}"]`);
-        window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.1, behavior: "instant" });
+        window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.3, behavior: "instant" });
       }, i);
       await wait(3500);
+      const active = await page.evaluate(() => document.querySelector('[aria-current="page"] span span.bg-cream') ? 1 : 0);
+      const label = await page.locator('[role="toolbar"] span[aria-hidden="true"]').first().textContent().catch(() => "?");
+      console.log(`   ${d} scene ${i + 1}: toolbar=${label}`);
       await shot(page, `${vpName}-${d}-${i + 1}`);
     }
     console.log(`${vpName} ${d}: ${sections} scenes`);
@@ -81,6 +84,7 @@ for (const [vpName, viewport] of [
   } else errors.push(`[${vpName}] no soop hotspot found on arghya scene`);
 
   // Language switch
+  if (viewport.width < 640) await page.getByRole("button", { name: "मेनू" }).click().catch(() => errors.push(`[${vpName}] no menu button`));
   await page.getByRole("button", { name: "English" }).first().click().catch(() => errors.push(`[${vpName}] no English button`));
   await wait(1500);
   const lang = await page.evaluate(() => document.documentElement.lang);
@@ -97,6 +101,7 @@ for (const [vpName, viewport] of [
   const free = await session(`${vpName}-free`, viewport, "3d", { mode: "free" });
   await free.page.goto(`${BASE}/day/kharna/`, { waitUntil: "networkidle" });
   await wait(5000);
+  console.log("free: clicking tab 3");
   await free.page.locator('[role="tab"]').nth(2).click();
   await wait(3500);
   await shot(free.page, `${vpName}-free-kharna-puja`);

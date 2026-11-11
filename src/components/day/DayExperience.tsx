@@ -154,7 +154,6 @@ function Guided({ day, reduced }: { day: Day; reduced: boolean }) {
   return (
     <>
       <div ref={container} className="relative">
-        <ScrollStoryController container={container} reduced={reduced} />
         {/* sticky stage */}
         <div className="sticky top-0 h-[100dvh] w-full">
           <DayStage day={day} free={false} />
@@ -181,7 +180,7 @@ function Guided({ day, reduced }: { day: Day; reduced: boolean }) {
               id={scene.id}
               data-scene-index={scene.index}
               aria-labelledby={`${scene.id}-title`}
-              className="relative flex min-h-[135dvh] items-end px-3 pb-24 pt-[45dvh] md:items-center md:px-6 md:pb-10 md:pt-24"
+              className="relative flex min-h-[135dvh] items-start px-3 pb-28 pt-[52dvh] md:items-center md:px-6 md:pb-10 md:pt-24"
             >
               {scene.id === "ghat-ki-or" && <ProcessionStrip />}
               <div className="mx-auto w-full max-w-7xl">
@@ -194,6 +193,8 @@ function Guided({ day, reduced }: { day: Day; reduced: boolean }) {
           <div className="h-[30dvh]" aria-hidden="true" />
         </div>
       </div>
+      {/* Must be a later sibling of the container: a child's layout effect runs before its parent's ref is attached. */}
+      <ScrollStoryController container={container} reduced={reduced} />
       <DayOutro day={day} />
     </>
   );

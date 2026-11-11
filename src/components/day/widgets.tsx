@@ -95,7 +95,9 @@ export function ObservanceTimeline({ compact = false }: { compact?: boolean }) {
           <g key={d}>
             {/* night shading */}
             <rect x={x(d * 24)} y="40" width={x(d * 24 + 6) - x(d * 24)} height="60" fill="#101D38" opacity="0.18" />
-            <rect x={x(d * 24 + 17)} y="40" width={x(Math.min(end, d * 24 + 24)) - x(d * 24 + 17)} height="60" fill="#101D38" opacity="0.18" />
+            {d * 24 + 17 < end && (
+              <rect x={x(d * 24 + 17)} y="40" width={x(Math.min(end, d * 24 + 24)) - x(d * 24 + 17)} height="60" fill="#101D38" opacity="0.18" />
+            )}
             <line x1={x(d * 24)} x2={x(d * 24)} y1="30" y2="110" stroke="#681C29" strokeWidth="1" strokeDasharray="3 3" />
             <text x={x(d * 24 + 12)} y="24" textAnchor="middle" fontSize="14" fontWeight="700" fill="#681C29">
               {t(dayNames[d])}
