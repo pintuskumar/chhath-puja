@@ -11,6 +11,7 @@ import { use3D, useEffectiveQuality, useReducedMotion } from "@/lib/device";
 import { useT, num } from "@/lib/i18n";
 import { SceneIllustration } from "../illustrations/SceneIllustration";
 import { TimeOfDayController, useStageHour } from "./TimeOfDayController";
+import { HotspotLayer } from "./HotspotLayer";
 import type { Day } from "@/content/types";
 
 const ExperienceCanvas = dynamic(() => import("../ExperienceCanvas"), { ssr: false });
@@ -51,7 +52,9 @@ export function DayStage({ day, free }: { day: Day; free: boolean }) {
           free={free}
           fallback={<ReducedMotionFallback day={day} showLabel={false} />}
         />
-      ) : (
+      ) : null}
+      {can3d && <HotspotLayer key={scene.id} ids={scene.objects} />}
+      {!can3d && (
         <div role="group" aria-label={`${t(day.title)} — ${t(scene.title)}. ${t(scene.visualDescription)}`} className="absolute inset-0">
           <ReducedMotionFallback day={day} showLabel />
         </div>

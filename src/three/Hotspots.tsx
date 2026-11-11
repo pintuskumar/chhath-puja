@@ -1,12 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { useMemo } from "react";
 import * as THREE from "three";
-import { useFrame } from "@react-three/fiber";
-import { Html } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useDirector } from "./Director";
 import { YARD, stepTop, GHAT } from "./choreography";
-import { RitualHotspot } from "@/components/RitualHotspot";
+import { hotspotElement } from "@/lib/hotspotRegistry";
 import type { AnimationId, EnvironmentId } from "@/content/types";
 
 type V3 = [number, number, number];
@@ -58,47 +57,47 @@ export function anchorsFor(env: EnvironmentId, anim: AnimationId): Record<string
   };
 }
 
-function HotspotNode({ id, anchor }: { id: string; anchor: Anchor }) {
-  const d = useDirector();
-  const g = useRef<THREE.Group>(null);
-  useFrame(() => {
-    if (!g.current) return;
-    if ("pos" in anchor) {
-      g.current.position.set(...anchor.pos);
-      return;
-    }
-    const a = d.current.actors[anchor.actor];
-    if (!a) {
-      g.current.visible = false;
-      return;
-    }
-    g.current.visible = true;
-    // rotate offset by the actor's facing
-    const c = Math.cos(a.rotY);
-    const s = Math.sin(a.rotY);
-    const [ox, oy, oz] = anchor.offset;
-    g.current.position.set(a.pos[0] + ox * c + oz * s, a.pos[1] + oy, a.pos[2] - ox * s + oz * c);
-  });
-  return (
-    <group ref={g}>
-      <Html center zIndexRange={[30, 10]} style={{ pointerEvents: "auto" }}>
-        <RitualHotspot objectId={id} />
-      </Html>
-    </group>
-  );
-}
-
+/**
+ * Projects each hotspot anchor to screen space every frame and positions the
+ * matching DOM button (see components/day/HotspotLayer.tsx).
+ */
 export function Hotspots({ env, anim, ids }: { env: EnvironmentId; anim: AnimationId; ids: string[] }) {
-  const anchors = anchorsFor(env, anim);
-  return (
-    <>
-      {ids
-        .filter((id) => anchors[id])
-        .map((id) => (
-          <HotspotNode key={`${anim}-${id}`} id={id} anchor={anchors[id]} />
-        ))}
-    </>
-  );
+  const d = useDirector();
+  const { camera, size } = useThree();
+  const v = useMemo(() => new THREE.Vector3(), []);
+  const anchors = useMemo(() => anchorsFor(env, anim), [env, anim]);
+  useFrame(() => {
+    for (const id of ids) {
+      const el = hotspotElement(id);
+      const anchor = anchors[id];
+      if (!el) continue;
+      if (!anchor) {
+        el.style.visibility = "hidden";
+        continue;
+      }
+      if ("pos" in anchor) v.set(...anchor.pos);
+      else {
+        const a = d.current.actors[anchor.actor];
+        if (!a) {
+          el.style.visibility = "hidden";
+          continue;
+        }
+        const c = Math.cos(a.rotY);
+        const s = Math.sin(a.rotY);
+        const [ox, oy, oz] = anchor.offset;
+        v.set(a.pos[0] + ox * c + oz * s, a.pos[1] + oy, a.pos[2] - ox * s + oz * c);
+      }
+      v.project(camera);
+      const onScreen = v.z < 1 && Math.abs(v.x) < 0.97 && Math.abs(v.y) < 0.95;
+      el.style.visibility = onScreen ? "visible" : "hidden";
+      if (onScreen) {
+        const x = ((v.x + 1) / 2) * size.width;
+        const y = ((1 - v.y) / 2) * size.height;
+        el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%)`;
+      }
+    }
+  });
+  return null;
 }
 
 export { GHAT };
