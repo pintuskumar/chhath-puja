@@ -90,7 +90,7 @@ def bone_head(name):
     return rig.matrix_world @ rig.data.bones["mixamorig:" + name].head_local
 
 
-L = {n: bone_head(n) for n in ["Hips", "Spine", "Spine2", "Neck", "Head", "LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "LeftUpLeg", "LeftLeg", "LeftFoot"]}
+L = {n: bone_head(n) for n in ["Hips", "Spine", "Spine2", "Neck", "Head", "LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "LeftUpLeg", "LeftLeg", "LeftFoot", "LeftHand", "RightHand"]}
 head_top_z = max((body.matrix_world @ v.co).z for v in body.data.vertices)
 log("landmarks z: hips %.3f neck %.3f head %.3f top %.3f foot %.3f" % (L["Hips"].z, L["Neck"].z, L["Head"].z, head_top_z, L["LeftFoot"].z))
 
@@ -326,7 +326,7 @@ def push_to_surface(p, offset, tree=None):
 # ───────────────────────── blouse / kurta: body copy ─────────────────────────
 
 
-def body_shell(name, groups, z_min, z_max, offset, mat, sleeve_z_min=None, exclude=False):
+def body_shell(name, groups, z_min, z_max, offset, mat, sleeve_z_min=None, exclude=False, trim=()):
     gidx = [group_names.index(g) for g in groups if g in group_names]
     if exclude:  # groups = parts to leave bare
         gidx = [i for i, g in enumerate(group_names) if any(k in g for k in groups)]
@@ -341,7 +341,8 @@ def body_shell(name, groups, z_min, z_max, offset, mat, sleeve_z_min=None, exclu
             w = sum(v[dl].get(g, 0.0) for g in gidx)
             zmin = sleeve_z_min if (sleeve_z_min is not None and abs(v.co.x) > 0.16) else z_min
             bad = (w >= 0.5) if exclude else (w < 0.5)
-            if bad or v.co.z < zmin or v.co.z > z_max:
+            near = any((v.co - c).length < r for c, r in trim)  # e.g. clean sleeve ends above the wrist
+            if bad or near or v.co.z < zmin or v.co.z > z_max:
                 ok = False
                 break
         if not ok:
@@ -588,29 +589,110 @@ if kind == "saree":
 elif kind in ("dhoti_kurta", "kurta_pyjama"):
     kurta = cloth_mat("kurta", C["main"])
     # kurta: loose body shell (torso + full sleeves, hands/head/legs bare) …
-    garments.append(body_shell("kurta", ["Hand", "Head", "Neck", "UpLeg", "Leg", "Foot", "Toe"], hips_z - 0.04, neck_z - 0.015, 0.012, kurta, exclude=True))
+    garments.append(body_shell("kurta", ["Hand", "Head", "Neck", "UpLeg", "Leg", "Foot", "Toe"], hips_z - 0.04, neck_z - 0.015, 0.012, kurta, exclude=True,
+                                trim=[(L["LeftHand"], 0.05), (L["RightHand"], 0.05)]))
     # … plus a free-hanging hem panel from the hips to above the knee (cloth-simulated)
     knee_z = L["LeftLeg"].z
-    garments.append(wrap_skirt("kurta_hem", hips_z + 0.02, knee_z + 0.08, kurta, kurta, pleats=False, flare=0.03, ease=0.02))
+    # sits clearly outside the dhoti/pyjama (their pleats/folds used to poke through)
+    hem_ease = 0.065 if kind == "dhoti_kurta" else 0.045
+    garments.append(wrap_skirt("kurta_hem", hips_z + 0.02, knee_z + 0.08, kurta, kurta, pleats=False, flare=0.03, ease=hem_ease))
     if kind == "dhoti_kurta":
         dhoti = cloth_mat("dhoti", C.get("dhoti", (0.95, 0.93, 0.86)))
         garments.append(wrap_skirt("dhoti", hips_z - 0.02, foot_z + 0.16, dhoti, border, pleats=True, flare=0.02, ease=0.03))
         if C.get("gamchha"):
             g = cloth_mat("gamchha", C["gamchha"], rough=0.8, stripe=(0.95, 0.93, 0.86))
-            ls = shoulder_l
-            # gamchha over the left shoulder, hanging front and back (cloth-simulated)
+            # gamchha over the left shoulder (on the trapezius, not out on the arm),
+            # hanging front and back; the cloth sim lets it fall and fold
+            gx = shoulder_l.x - math.copysign(0.035, shoulder_l.x)
             garments.append(ribbon("gamchha", [
-                (ls.x + 0.02, front_y - 0.02, L["Spine"].z + 0.02),
-                (ls.x + 0.04, front_y + 0.02, L["Spine2"].z),
-                (ls.x + 0.05, L["Neck"].y, neck_z - 0.02),
-                (ls.x + 0.04, L["Neck"].y + 0.12, L["Spine2"].z),
-                (ls.x + 0.02, L["Neck"].y + 0.14, L["Spine"].z + 0.02),
-            ], 0.15, 0.03, g, g, samples=40, across=5))
+                (gx, front_y - 0.03, L["Spine"].z),
+                (gx, front_y - 0.01, L["Spine2"].z),
+                (gx, L["Neck"].y - 0.02, neck_z - 0.01),
+                (gx, L["Neck"].y + 0.10, L["Spine2"].z),
+                (gx, L["Neck"].y + 0.12, L["Spine"].z),
+            ], 0.15, 0.022, g, g, samples=48, across=6))
     else:
         py = cloth_mat("pyjama", C.get("pyjama", (0.94, 0.92, 0.85)))
         garments.append(body_shell("pyjama", ["Hand", "Arm", "Spine1", "Spine2", "Neck", "Head", "Foot", "Toe"], foot_z + 0.07, hips_z + 0.04, 0.02, py, exclude=True))
 
 log("garments", [(g.name, len(g.data.polygons)) for g in garments])
+
+
+# ───────────────────────── cloth simulation (real drape) ─────────────────────────
+def simulate(objs_pins, colliders=(), frames=40):
+    """objs_pins: [(object, pin_test(world_co) -> bool)]. Simulates in the rest pose against
+    the body plus any garments in `colliders` (so outer layers drape over inner ones)."""
+    cols = []
+    for c_ob, th in [(body, 0.006)] + [(c, 0.004) for c in colliders]:
+        m = c_ob.modifiers.new("collide", "COLLISION")
+        c_ob.collision.thickness_outer = th
+        c_ob.collision.cloth_friction = 8
+        cols.append((c_ob, m))
+    for ob, pin_test in objs_pins:
+        g = ob.vertex_groups.new(name="pin")
+        g.add([v.index for v in ob.data.vertices if pin_test(ob.matrix_world @ v.co)], 1.0, "REPLACE")
+        m = ob.modifiers.new("cloth", "CLOTH")
+        c = m.settings
+        c.quality = 6
+        c.mass = 0.18           # cotton
+        c.tension_stiffness = 12
+        c.compression_stiffness = 12
+        c.shear_stiffness = 6
+        c.bending_stiffness = 0.6
+        c.air_damping = 1.5
+        c.vertex_group_mass = "pin"
+        m.collision_settings.use_collision = True
+        m.collision_settings.distance_min = 0.005
+        m.collision_settings.use_self_collision = False
+        m.point_cache.frame_start, m.point_cache.frame_end = 1, frames
+    scn = bpy.context.scene
+    scn.frame_start, scn.frame_end = 1, frames
+    for f in range(1, frames + 1):
+        scn.frame_set(f)
+    dg = bpy.context.evaluated_depsgraph_get()
+    for ob, _ in objs_pins:
+        ev = ob.evaluated_get(dg)
+        me = ev.to_mesh()
+        co = np.empty(len(me.vertices) * 3, dtype=np.float32)
+        me.vertices.foreach_get("co", co)
+        ev.to_mesh_clear()
+        ob.modifiers.remove(ob.modifiers["cloth"])
+        old = np.empty_like(co)
+        ob.data.vertices.foreach_get("co", old)
+        ob.data.vertices.foreach_set("co", co)
+        ob.data.update()
+        ob.vertex_groups.remove(ob.vertex_groups["pin"])
+        for g in list(ob.vertex_groups):  # re-skin from the draped positions
+            ob.vertex_groups.remove(g)
+        skin_from_body(ob, _remember=False, **SKIN_ARGS[ob.name])
+        log(f"draped {ob.name}: max move {np.abs(co - old).reshape(-1, 3).max():.3f} m")
+    for c_ob, m in cols:
+        c_ob.modifiers.remove(m)
+    scn.frame_set(1)
+
+
+by_name = {g.name: g for g in garments}
+inner = []  # stage 1: layers next to the body
+if "saree_skirt" in by_name:
+    inner.append((by_name["saree_skirt"], lambda co: co.z > hips_z + 0.02))
+if "dhoti" in by_name:
+    inner.append((by_name["dhoti"], lambda co: co.z > hips_z - 0.04))
+if "pallu_head" in by_name:
+    inner.append((by_name["pallu_head"], lambda co: co.z > L["Head"].z + 0.07))
+outer, outer_cols = [], [by_name[n] for n in ("dhoti", "pyjama", "kurta") if n in by_name]
+if "kurta_hem" in by_name:  # stage 2: over the dhoti / pyjama
+    outer.append((by_name["kurta_hem"], lambda co: co.z > hips_z - 0.01))
+if "gamchha" in by_name:  # pinned only where it rests on the shoulder
+    outer.append((by_name["gamchha"], lambda co: co.z > neck_z - 0.05))
+for stage, cols in ((inner, ()), (outer, outer_cols)):
+    if stage:
+        try:
+            simulate(stage, cols)
+        except Exception as e:  # keep the un-simulated garment rather than failing the build
+            log("cloth simulation failed:", repr(e))
+
+for g in garments:
+    cylindrical_uv(g)
 
 # ───────────────────────── fit the web budget ─────────────────────────
 BUDGET = S.get("tri_budget", 24000)
