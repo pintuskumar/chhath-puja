@@ -127,7 +127,10 @@ def two_bone(upper, lower, target, pole):
     E = S0 + u * (a * cosA) + p * (a * sinA)
     aim(upper, E - S0)
     aim(lower, (S0 + u * d) - wpos(lower))
-    IK_ERR[lower] = max(IK_ERR.get(lower, 0.0), (wpos(lower, tail=True) - T).length)
+    err = (wpos(lower, tail=True) - T).length
+    if err > 0.2 and lower not in IK_ERR:
+        log(f"  IK miss {lower}: shoulder {tuple(round(c, 2) for c in S0)} target {tuple(round(c, 2) for c in T)} reach {a + b:.2f}")
+    IK_ERR[lower] = max(IK_ERR.get(lower, 0.0), err)
 
 
 IK_ERR = {}
@@ -180,7 +183,14 @@ LEG_V = -(REST["LeftUpLeg"].z * THIGH + REST["LeftLeg"].z * SHIN)  # vertical le
 X = Vector((1, 0, 0))
 FWD = Vector((0, -1, 0))  # the character faces −Y; its left is +X
 UP = Vector((0, 0, 1))
-log(f"hips {HIP_Z:.3f} thigh {THIGH:.3f} shin {SHIN:.3f}")
+_dg = bpy.context.evaluated_depsgraph_get()
+HEAD_TOP, FOOT_Z = 0.0, 9.0
+for _o in [o for o in bpy.data.objects if o.type == "MESH"]:
+    _me = _o.evaluated_get(_dg).to_mesh()
+    _zs = [(_o.matrix_world @ v.co).z for v in _me.vertices]
+    HEAD_TOP, FOOT_Z = max(HEAD_TOP, max(_zs)), min(FOOT_Z, min(_zs))
+    _o.evaluated_get(_dg).to_mesh_clear()
+log(f"hips {HIP_Z:.3f} thigh {THIGH:.3f} shin {SHIN:.3f} head bone {wpos('Head').z:.3f} crown {HEAD_TOP:.3f} sole {FOOT_Z:.3f}")
 
 
 def pitch(v, deg):
@@ -293,7 +303,7 @@ def c_water(t):
     legs_stand(spread=0.05, knee=4)
     spine(fwd=2, side=-0.6 * b, breathe=1.0 * math.sin(4 * math.pi * t))
     head(pitch_deg=-4)
-    hands_to(front_of(wpos("Hips"), 0.22, 0.05, 0.10), front_of(wpos("Hips"), 0.22, 0.05, -0.10))
+    hands_to(front_of(wpos("Hips"), 0.24, 0.14, 0.15), front_of(wpos("Hips"), 0.24, 0.14, -0.15))
     for sd in ("Left", "Right"):
         orient_hand(sd, wdir(f"{sd}ForeArm"), FWD)
         curl(sd, 22)
@@ -314,8 +324,8 @@ def c_walk_down(t):
 def carry_arms():
     # palms steady the daura on the head: hands beside the crown, elbows out
     hd = wpos("Head")
-    top = Vector((hd.x, hd.y, hd.z + 0.24))
-    hands_to(top + Vector((0.19, -0.02, 0.0)), top + Vector((-0.19, -0.02, 0.0)), Vector((1, 0.2, -0.4)), Vector((-1, 0.2, -0.4)))
+    top = Vector((hd.x, hd.y, HEAD_TOP - 0.03))  # wrists at crown height, palms up on the rim
+    hands_to(top + Vector((0.2, -0.02, 0.0)), top + Vector((-0.2, -0.02, 0.0)), Vector((1, 0.2, -0.6)), Vector((-1, 0.2, -0.6)))
     for sd in ("Left", "Right"):
         s = side_sign(sd)
         orient_hand(sd, Vector((-s * 0.6, 0, 1)), Vector((0, -1, 0)))
@@ -338,7 +348,8 @@ def soop_hands(height, dist, lift=0.0):
     c = chest()
     base = Vector((c.x, c.y, height + lift))
     lt, rt = front_of(base, dist, 0, 0.16), front_of(base, dist, 0, -0.16)
-    hands_to(lt, rt, Vector((1, 0.2, -1)), Vector((-1, 0.2, -1)))
+    # elbows hang down (relaxed, as when holding a laden soop), not flared out
+    hands_to(lt, rt, Vector((0.45, 0.3, -1)), Vector((-0.45, 0.3, -1)))
     for sd in ("Left", "Right"):
         s = side_sign(sd)
         # palms up and inwards under the rim of the soop, fingers forward
@@ -383,7 +394,7 @@ def c_namaste(t):
     spine(fwd=3, breathe=1.0 * math.sin(2 * math.pi * t))
     head(pitch_deg=8)
     c = chest()
-    p = front_of(c, 0.16, 0.04)
+    p = front_of(c, 0.17, -0.12)  # wrists low on the sternum → palms at the heart
     hands_to(p + X * 0.012, p - X * 0.012, Vector((1, 0.4, -0.6)), Vector((-1, 0.4, -0.6)))
     for sd in ("Left", "Right"):
         orient_hand(sd, Vector((0, -0.2, 1)), FWD)
@@ -447,12 +458,12 @@ def c_stir(t):
 
 def c_sweep(t):
     shift("Hips", (0, 0.03, 0))
-    legs_stand(spread=0.06, knee=24)
+    legs_stand(spread=0.06, knee=30)
     sw = math.sin(2 * math.pi * t)
-    spine(fwd=38, twist=-6 * sw)
+    spine(fwd=50, twist=-6 * sw)
     head(pitch_deg=-12)
     hip = wpos("Hips")
-    two_bone("RightArm", "RightForeArm", front_of(Vector((hip.x, hip.y, 0.0)), 0.42, 0.55, -0.05 + 0.22 * sw), Vector((-1, 0.4, -0.3)))
+    two_bone("RightArm", "RightForeArm", front_of(Vector((hip.x, hip.y, FOOT_Z)), 0.38, 0.42, -0.05 + 0.22 * sw), Vector((-1, 0.4, -0.3)))
     orient_hand("Right", Vector((0.15 * sw, -0.3, -1)), FWD)
     curl("Right", 50)
     k = wpos("LeftLeg")
@@ -466,12 +477,12 @@ def c_bow(t):
     k = min(1.0, max(0.0, (t - 0.15) / 0.25)) if t < 0.6 else max(0.0, 1 - (t - 0.6) / 0.3)
     k = 0.5 - 0.5 * math.cos(math.pi * k)
     shift("Hips", (0, 0.06 * k, 0))
-    legs_stand(spread=0.03, knee=20 * k)
-    spine(fwd=78 * k)
+    legs_stand(spread=0.03, knee=35 * k)
+    spine(fwd=75 * k)
     head(pitch_deg=10 * k)
     hip = wpos("Hips")
     if k > 0.05:
-        g = front_of(Vector((hip.x, hip.y, 0.0)), 0.55, 0.06)
+        g = front_of(Vector((hip.x, hip.y, FOOT_Z)), 0.45, 0.12)
         low = lambda sd: g + X * (side_sign(sd) * 0.09)  # noqa: E731
         hands_to(low("Left").lerp(wpos("LeftArm") + Vector((0.1, -0.05, -0.55)), 1 - k), low("Right").lerp(wpos("RightArm") + Vector((-0.1, -0.05, -0.55)), 1 - k))
         for sd in ("Left", "Right"):
