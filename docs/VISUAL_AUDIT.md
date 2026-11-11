@@ -126,14 +126,14 @@ The existing hotspots, panels, scroll story, controls, language, audio and progr
 
 Route A needed Unreal Engine and Blender on your machine, which you couldn't install, so I switched to **MakeHuman via MPFB (CC0)** and generated everything headlessly in Blender on GitHub Actions (`.github/workflows/characters.yml`). See [`characters/NOTES.md`](../characters/NOTES.md).
 
-### Before / after: Day 3 · scene 5 · संध्या अर्घ्य (camera `ghat-closeup`, sun at 4:55 pm)
+### Before / after: Day 3 · scene 5 · संध्या अर्घ्य (camera `ghat-closeup`)
 
 | Before (procedural, commit `4eea7df`) | After (rigged MPFB characters + keyframed clips) |
 |---|---|
 | ![before](audit/before-sandhya-arghya-desktop.png) | ![after](audit/after-sandhya-arghya-desktop.png) |
 | ![before mobile](audit/before-sandhya-arghya-mobile.png) | ![after mobile](audit/after-sandhya-arghya-mobile.png) |
 
-Both frames come from the CI smoke test (`scripts/smoke.mjs`) on the same URL and camera preset. The after frame pins the sun slider to 16.9 h, so the only change is the characters.
+Both pairs come from the same CI smoke-test step (`scripts/smoke.mjs`: scroll through Day 3 and capture scene 5 after 3.5 s) with the same camera preset and viewport. Before: commit `4eea7df`. After: CI run `43042815620`. The scene clock reads 4:55 pm in the before frame and 4:45 pm in the after frame, which explains the small difference in sun colour. A second desktop capture with the sun slider pinned to 4:55 pm is in [`audit/after-sandhya-arghya-desktop-pinned-455pm.png`](audit/after-sandhya-arghya-desktop-pinned-455pm.png).
 
 ### Exactly what was replaced
 
