@@ -28,10 +28,13 @@ export function Character({
   get,
   reduced,
   quality,
+  ground,
 }: {
   get: () => ActorState | undefined;
   reduced?: boolean;
   quality: "low" | "medium" | "high";
+  /** Terrain height (environment space) for foot IK, e.g. the ghat steps. */
+  ground?: (x: number, z: number) => number;
 }) {
   const manifest = useModelManifest();
   const look = get()?.look;
@@ -41,7 +44,7 @@ export function Character({
   return (
     <RigBoundary fallback={procedural}>
       <Suspense fallback={procedural}>
-        <RiggedDevotee get={get} spec={spec} manifest={manifest} reduced={reduced} quality={quality} />
+        <RiggedDevotee get={get} spec={spec} manifest={manifest} reduced={reduced} quality={quality} ground={ground} />
       </Suspense>
     </RigBoundary>
   );

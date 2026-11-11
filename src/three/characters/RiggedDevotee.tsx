@@ -22,6 +22,74 @@ import { modelUrl, type CharacterSpec, type ModelManifest, type PropOffset } fro
 const RIGHT_GRIP = ["hand_r_grip", "hand_r", "mixamorigRightHand", "RightHand"];
 const LEFT_GRIP = ["hand_l_grip", "hand_l", "mixamorigLeftHand", "LeftHand"];
 const HEAD = ["head", "mixamorigHead", "Head"];
+const LEGS = {
+  l: [["mixamorigLeftUpLeg", "thigh_l"], ["mixamorigLeftLeg", "calf_l"], ["mixamorigLeftFoot", "foot_l"]],
+  r: [["mixamorigRightUpLeg", "thigh_r"], ["mixamorigRightLeg", "calf_r"], ["mixamorigRightFoot", "foot_r"]],
+} as const;
+
+interface Leg {
+  hip: THREE.Object3D;
+  knee: THREE.Object3D;
+  foot: THREE.Object3D;
+}
+
+const ik = {
+  a: new THREE.Vector3(),
+  b: new THREE.Vector3(),
+  c: new THREE.Vector3(),
+  t: new THREE.Vector3(),
+  u: new THREE.Vector3(),
+  n: new THREE.Vector3(),
+  p: new THREE.Vector3(),
+  e: new THREE.Vector3(),
+  v1: new THREE.Vector3(),
+  v2: new THREE.Vector3(),
+  q: new THREE.Quaternion(),
+  qa: new THREE.Quaternion(),
+  qb: new THREE.Quaternion(),
+  foot: new THREE.Quaternion(),
+};
+
+/** Apply a world-space rotation to a bone (children follow). */
+function rotateWorld(bone: THREE.Object3D, q: THREE.Quaternion) {
+  bone.getWorldQuaternion(ik.qa);
+  ik.qa.premultiply(q);
+  bone.parent!.getWorldQuaternion(ik.qb);
+  bone.quaternion.copy(ik.qb.invert().multiply(ik.qa));
+  bone.updateMatrixWorld(true);
+}
+
+/**
+ * Analytic two-bone IK: move the ankle to `target` (world), keeping the knee in its current
+ * bend plane and the foot's world orientation (so it lands flat on the step).
+ */
+function solveLeg(leg: Leg, target: THREE.Vector3, sideAxis: THREE.Vector3) {
+  const { a, b, c, u, n, p, e, v1, v2, q } = ik;
+  leg.hip.getWorldPosition(a);
+  leg.knee.getWorldPosition(b);
+  leg.foot.getWorldPosition(c);
+  leg.foot.getWorldQuaternion(ik.foot);
+  const l1 = a.distanceTo(b);
+  const l2 = b.distanceTo(c);
+  const d = THREE.MathUtils.clamp(a.distanceTo(target), Math.abs(l1 - l2) + 1e-4, (l1 + l2) * 0.999);
+  u.subVectors(target, a).normalize();
+  n.crossVectors(v1.subVectors(b, a), v2.subVectors(c, a));
+  if (n.lengthSq() < 1e-10) n.copy(sideAxis);
+  n.normalize();
+  p.crossVectors(n, u).normalize();
+  if (p.dot(v1.subVectors(b, a)) < 0) p.negate(); // keep the knee pointing the same way
+  const cosA = (l1 * l1 + d * d - l2 * l2) / (2 * l1 * d);
+  const sinA = Math.sqrt(Math.max(0, 1 - cosA * cosA));
+  e.copy(a).addScaledVector(u, l1 * cosA).addScaledVector(p, l1 * sinA);
+  rotateWorld(leg.hip, q.setFromUnitVectors(v1.subVectors(b, a).normalize(), v2.subVectors(e, a).normalize()));
+  leg.knee.getWorldPosition(b);
+  leg.foot.getWorldPosition(c);
+  const end = v2.copy(a).addScaledVector(u, d);
+  rotateWorld(leg.knee, q.setFromUnitVectors(v1.subVectors(c, b).normalize(), end.sub(b).normalize()));
+  leg.foot.parent!.getWorldQuaternion(ik.qb);
+  leg.foot.quaternion.copy(ik.qb.invert().multiply(ik.foot));
+  leg.foot.updateMatrixWorld(true);
+}
 
 /** Default attachment bone per held item. */
 const HOLD_BONE: Record<Exclude<HoldId, "none">, "right" | "left" | "head" | "both"> = {
@@ -248,9 +316,11 @@ interface Props {
   manifest: ModelManifest;
   reduced?: boolean;
   quality: "low" | "medium" | "high";
+  /** Terrain height in environment space; enables foot IK (feet planted on the ghat steps). */
+  ground?: (x: number, z: number) => number;
 }
 
-export function RiggedDevotee({ get, spec, manifest, reduced, quality }: Props) {
+export function RiggedDevotee({ get, spec, manifest, reduced, quality, ground }: Props) {
   const src = quality === "low" && spec.srcLow ? spec.srcLow : spec.src;
   // (draco=false: no CDN decoder; meshopt=true: decoder is bundled)
   const gltf = useGLTF(modelUrl(src), false, true);
@@ -322,6 +392,17 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality }: Props) 
     () => ({ right: findBone(model, RIGHT_GRIP), left: findBone(model, LEFT_GRIP), head: findBone(model, HEAD) }),
     [model],
   );
+  const legs = useMemo(() => {
+    const out: Leg[] = [];
+    for (const names of [LEGS.l, LEGS.r]) {
+      const [hip, knee, foot] = names.map((n) => findBone(model, [...n]));
+      if (hip && knee && foot) out.push({ hip, knee, foot });
+    }
+    return out.length === 2 ? out : null;
+  }, [model]);
+  const footBase = useRef<number | null>(null);
+  const prevTargetY = useRef<number | null>(null);
+  const fk = useMemo(() => ({ w: new THREE.Vector3(), side: new THREE.Vector3(), gy: [0, 0] }), []);
 
   const root = useRef<THREE.Group>(null);
   const afterMix = useMemo(() => new Set<() => void>(), []);
@@ -357,7 +438,8 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality }: Props) 
     g.rotation.y += dr * k;
 
     const speed = first.current ? 0 : Math.hypot(g.position.x - prev.x, g.position.z - prev.z) / Math.max(delta, 1e-3);
-    const dy = g.position.y - prev.y;
+    const dy = prevTargetY.current == null ? 0 : s.pos[1] - prevTargetY.current;
+    prevTargetY.current = s.pos[1];
     first.current = false;
 
     const inWater = s.pos[1] <= GHAT.waterStandY + 0.2;
@@ -380,6 +462,27 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality }: Props) 
     // Reduced motion: hold the pose (first frame of each clip), no looping motion.
     mixer.update(reduced ? 0 : delta);
     g.updateMatrixWorld(true);
+    if (ground && legs && g.parent) {
+      // pelvis follows the lower foot's ground; the other leg is lifted onto its step
+      for (let i = 0; i < 2; i++) {
+        legs[i].foot.getWorldPosition(fk.w);
+        g.parent.worldToLocal(fk.w);
+        fk.gy[i] = ground(fk.w.x, fk.w.z);
+      }
+      const base = Math.min(fk.gy[0], fk.gy[1]);
+      footBase.current = footBase.current == null || reduced ? base : footBase.current + (base - footBase.current) * (1 - Math.exp(-delta * 14));
+      g.position.y = footBase.current;
+      g.updateMatrixWorld(true);
+      fk.side.set(1, 0, 0).applyQuaternion(g.getWorldQuaternion(ik.q));
+      for (let i = 0; i < 2; i++) {
+        const lift = fk.gy[i] - footBase.current;
+        if (lift > 0.01) {
+          legs[i].foot.getWorldPosition(ik.t);
+          ik.t.y += lift;
+          solveLeg(legs[i], ik.t, fk.side);
+        }
+      }
+    }
     for (const f of afterMix) f();
 
     for (const [h, node] of Object.entries(holds.current)) if (node) node.visible = h === s.hold;

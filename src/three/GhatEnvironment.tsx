@@ -15,9 +15,12 @@ import { LOOKS } from "./Devotee";
 import { Character } from "./characters/Character";
 import { Daura, Soop, Sugarcane, Diya, Kalash } from "./props";
 import { useDirector } from "./Director";
-import { GHAT, stepTop, choreograph } from "./choreography";
+import { GHAT, stepTop, choreograph, ghatGround } from "./choreography";
 import { skyAt } from "@/lib/sky";
 import type { AnimationId } from "@/content/types";
+
+/** Ground under a point on the ghat (steps, slope, river bed) for character foot IK. */
+const ghatFloor = (_x: number, z: number) => ghatGround(z);
 
 type Q = "low" | "medium" | "high";
 
@@ -378,7 +381,7 @@ export default function GhatEnvironment({ anim, quality }: { anim: AnimationId; 
       <FamilySpot anim={anim} />
       {anim === "evening-close" && <Kosi />}
       {actorKeys.map((k) => (
-        <Character key={`${anim}-${k}`} get={() => d.current.actors[k]} reduced={d.current.reduced} quality={quality} />
+        <Character key={`${anim}-${k}`} get={() => d.current.actors[k]} reduced={d.current.reduced} quality={quality} ground={ghatFloor} />
       ))}
     </group>
   );
