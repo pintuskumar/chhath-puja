@@ -134,6 +134,29 @@ if skin_mat:
         bsdf.inputs["Roughness"].default_value = 0.58
     if "Specular IOR Level" in bsdf.inputs:
         bsdf.inputs["Specular IOR Level"].default_value = 0.3
+# MakeHuman's default low-poly eye texture has a red-brown iris that reads as red eyes on
+# screen → re-hue reddish pixels to a dark South-Asian brown, keeping their luminance.
+for eo in [o for o in keep if o.type == "MESH" and "low-poly" in o.name.lower()]:
+    for slot in eo.material_slots:
+        m = slot.material
+        if not m or not m.use_nodes:
+            continue
+        for n in m.node_tree.nodes:
+            if n.type != "TEX_IMAGE" or not n.image or n.image.get("rehued"):
+                continue
+            img = n.image
+            px = np.empty(img.size[0] * img.size[1] * 4, dtype=np.float32)
+            img.pixels.foreach_get(px)
+            px = px.reshape(-1, 4)
+            r, g, b = px[:, 0], px[:, 1], px[:, 2]
+            red = (r > 1.3 * g) & (r > 1.3 * b) & (r > 0.08)
+            lum = 0.3 * r + 0.59 * g + 0.11 * b
+            brown = np.array([1.4, 0.9, 0.55], dtype=np.float32)
+            px[red, :3] = np.clip(lum[red, None] * 0.8 * brown, 0, 1)
+            img.pixels.foreach_set(px.ravel())
+            img.pack()
+            img["rehued"] = True
+            log(f"eyes: re-hued {int(red.sum())} reddish iris pixels in {img.name}")
 hair = next((o for o in keep if "hair" in o.name.lower() or S["hair"] in o.name), None)
 if hair and S.get("head_covered"):
     hb = bmesh.new()
@@ -355,6 +378,11 @@ def body_shell(name, groups, z_min, z_max, offset, mat, sleeve_z_min=None, exclu
     bm.from_mesh(body.data)
     bm.transform(body.matrix_world)
     dl = bm.verts.layers.deform.verify()
+    # clean collar: cut along a plane first (face-by-face trimming leaves a sawtooth edge);
+    # the Neck/Head weights are then ignored so they don't re-jag the cut line
+    bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, z_max), plane_no=(0, 0, 1), clear_outer=True)
+    if exclude:
+        gidx = [i for i in gidx if not any(k in group_names[i] for k in ("Neck", "Head"))]
     kill = []
     for f in bm.faces:
         ok = True
@@ -363,7 +391,7 @@ def body_shell(name, groups, z_min, z_max, offset, mat, sleeve_z_min=None, exclu
             zmin = sleeve_z_min if (sleeve_z_min is not None and abs(v.co.x) > 0.16) else z_min
             bad = (w >= 0.5) if exclude else (w < 0.5)
             near = any((v.co - c).length < r for c, r in trim)  # e.g. clean sleeve ends above the wrist
-            if bad or near or v.co.z < zmin or v.co.z > z_max:
+            if bad or near or v.co.z < zmin or v.co.z > z_max + 1e-4:
                 ok = False
                 break
         if not ok:

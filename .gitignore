@@ -8,3 +8,4 @@ lhci-reports
 .lighthouseci
 .vercel
 models-src/
+__pycache__/

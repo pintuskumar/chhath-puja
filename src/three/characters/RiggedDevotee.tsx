@@ -119,6 +119,32 @@ const CLOTH = /_(main|border|blouse|dhoti|kurta|pyjama|gamchha)$/;
 const WATER_Y = 0; // river surface (Water.tsx)
 
 /**
+ * MPFB exports every MakeHuman material as alpha BLEND (skin, eyes, hair). three.js sorts
+ * transparent meshes per object, so eyeballs and the mouth interior bleed through the skin
+ * (red blotches on faces at distance). Skin + eyes → opaque; hair → alpha cut-out;
+ * only brows/lashes stay blended, drawn after the head without writing depth.
+ * Mutates the cached (shared) materials once; idempotent.
+ */
+function fixHumanAlpha(x: THREE.Material) {
+  if (x.userData.alphaFixed || !x.name.startsWith("Human.")) return;
+  x.userData.alphaFixed = true;
+  if (/eyebrow|eyelash/i.test(x.name)) {
+    x.transparent = true;
+    x.depthWrite = false;
+  } else if (/\.(body|low-poly)$|eye/i.test(x.name)) {
+    x.transparent = false;
+    x.alphaTest = 0;
+    x.depthWrite = true;
+    x.side = THREE.FrontSide; // no inner faces showing through
+  } else {
+    x.transparent = false; // hair
+    x.alphaTest = 0.5;
+    x.depthWrite = true;
+  }
+  x.needsUpdate = true;
+}
+
+/**
  * Wet cotton below the waterline: darker and glossier, with a short wicking band above it.
  * `wet` (0..1) is driven per character: 1 while standing in the river, drying slowly after.
  */
@@ -336,6 +362,7 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality, ground }:
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
       const swap = (x: THREE.Material) => {
+        fixHumanAlpha(x);
         if (!(x as THREE.MeshStandardMaterial).isMeshStandardMaterial || !CLOTH.test(x.name)) return x;
         const c = makeWet(x as THREE.MeshStandardMaterial, wet);
         own.push(c);
