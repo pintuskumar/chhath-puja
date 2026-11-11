@@ -754,16 +754,36 @@ def tri_count():
 before = tri_count()
 others = before - sum(len(p.vertices) - 2 for p in body.data.polygons)
 body_tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
-ratio = max(0.12, min(1.0, (BUDGET - others) / max(body_tris, 1)))
-if ratio < 1.0:
-    dec = body.modifiers.new("web_decimate", "DECIMATE")
+def obj_tris(o):
+    return sum(len(p.vertices) - 2 for p in o.data.polygons)
+
+
+def decimate(o, ratio):
+    """Collapse-decimate before the armature modifier (vertex weights are interpolated)."""
+    dec = o.modifiers.new("web_decimate", "DECIMATE")
     dec.ratio = ratio
     dec.use_symmetry = True
     dec.symmetry_axis = "X"
-    body.modifiers.move(len(body.modifiers) - 1, 0)  # before the armature modifier
-    with bpy.context.temp_override(object=body, active_object=body, selected_objects=[body]):
+    o.modifiers.move(len(o.modifiers) - 1, 0)
+    with bpy.context.temp_override(object=o, active_object=o, selected_objects=[o]):
         bpy.ops.object.modifier_apply(modifier="web_decimate")
+
+
+ratio = max(0.12, min(1.0, (BUDGET - others) / max(body_tris, 1)))
+if ratio < 1.0:
+    decimate(body, ratio)
 log(f"triangles {before} → {tri_count()} (body ratio {ratio:.2f})")
+# Still over (small characters: the body is at its floor): the body-copy garment shells
+# (kurta, pyjama, blouse) carry the body's full density → thin them too, never below 35 %.
+excess = tri_count() - BUDGET
+shells = [g for g in garments if g.name in ("kurta", "pyjama", "blouse")]
+shell_tris = sum(obj_tris(g) for g in shells)
+if excess > 0 and shell_tris:
+    r = max(0.35, 1 - excess / shell_tris)
+    for g in shells:
+        decimate(g, r)
+    log(f"garment shells ratio {r:.2f} → {tri_count()} tris")
+log("tris per mesh", sorted(((o.name, obj_tris(o)) for o in bpy.data.objects if o.type == "MESH"), key=lambda x: -x[1])[:8])
 for img in bpy.data.images:
     if img.size[0] > 1024 and not img.name.endswith(("_col", "_nrm")):
         img.scale(1024, 1024)

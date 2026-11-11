@@ -46,6 +46,34 @@ function findBone(root: THREE.Object3D, names: string[]) {
   return null;
 }
 
+/** Cloth materials written by characters/blender/build_character.py (`<id>_<garment>`). */
+const CLOTH = /_(main|border|blouse|dhoti|kurta|pyjama|gamchha)$/;
+const WATER_Y = 0; // river surface (Water.tsx)
+
+/**
+ * Wet cotton below the waterline: darker and glossier, with a short wicking band above it.
+ * `wet` (0..1) is driven per character: 1 while standing in the river, drying slowly after.
+ */
+function makeWet(m: THREE.MeshStandardMaterial, wet: { value: number }) {
+  const c = m.clone();
+  c.onBeforeCompile = (sh) => {
+    sh.uniforms.uWet = wet;
+    sh.uniforms.uWaterY = { value: WATER_Y };
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying float vWetY;")
+      .replace("#include <skinning_vertex>", "#include <skinning_vertex>\nvWetY = (modelMatrix * vec4(transformed, 1.0)).y;");
+    sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying float vWetY;\nuniform float uWet;\nuniform float uWaterY;\nfloat wetK;")
+      .replace(
+        "#include <color_fragment>",
+        "#include <color_fragment>\nwetK = uWet * (1.0 - smoothstep(uWaterY, uWaterY + 0.12, vWetY));\ndiffuseColor.rgb *= mix(1.0, 0.55, wetK);",
+      )
+      .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.32, wetK);");
+  };
+  c.customProgramCacheKey = () => "wet-cloth";
+  return c;
+}
+
 interface Rest {
   q: THREE.Quaternion;
   p: THREE.Vector3;
@@ -229,8 +257,22 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality }: Props) 
   const clipsGltf = useGLTF(modelUrl(manifest.clips!), false, true);
   const shadows = quality === "high";
 
+  const wet = useMemo(() => ({ value: 0 }), []);
   const { model, scale, lift } = useMemo(() => {
     const m = cloneSkinned(gltf.scene) as THREE.Object3D;
+    const own: THREE.Material[] = [];
+    m.userData.ownMaterials = own; // per-instance clones, disposed on unmount
+    m.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const swap = (x: THREE.Material) => {
+        if (!(x as THREE.MeshStandardMaterial).isMeshStandardMaterial || !CLOTH.test(x.name)) return x;
+        const c = makeWet(x as THREE.MeshStandardMaterial, wet);
+        own.push(c);
+        return c;
+      };
+      mesh.material = Array.isArray(mesh.material) ? mesh.material.map(swap) : swap(mesh.material);
+    });
     m.traverse((o) => {
       o.userData.rest = restOf(o); // captured before any clip plays (used for retargeting)
       const mesh = o as THREE.Mesh;
@@ -244,7 +286,7 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality }: Props) 
     const h = box.max.y - box.min.y;
     const s = h > 0 ? spec.height / h : 1;
     return { model: m, scale: s, lift: -box.min.y * s };
-  }, [gltf.scene, shadows, spec.height]);
+  }, [gltf.scene, shadows, spec.height, wet]);
 
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const actions = useMemo(() => {
@@ -272,6 +314,7 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality }: Props) 
       w.__riggedCharacters = (w.__riggedCharacters ?? 1) - 1;
       mixer.stopAllAction();
       mixer.uncacheRoot(model);
+      for (const mt of (model.userData.ownMaterials as THREE.Material[] | undefined) ?? []) mt.dispose();
     };
   }, [mixer, model]);
 
@@ -317,10 +360,13 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality }: Props) 
     const dy = g.position.y - prev.y;
     first.current = false;
 
+    const inWater = s.pos[1] <= GHAT.waterStandY + 0.2;
+    // soaks quickly, dries over ~2 minutes
+    wet.value = inWater ? Math.min(1, wet.value + delta * 1.5) : Math.max(0, wet.value - delta / 120);
     const candidates = clipCandidates(s.pose, {
       moving: speed > 0.15,
       descending: dy < -0.002,
-      inWater: s.pos[1] <= GHAT.waterStandY + 0.2,
+      inWater,
     });
     const name = candidates.find((c) => actions.has(c)) ?? (actions.has("idle_stand") ? "idle_stand" : actions.keys().next().value);
     if (name && current.current?.name !== name) {
