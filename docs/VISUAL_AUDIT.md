@@ -163,4 +163,10 @@ Clips: `idle_stand, walk_barefoot, walk_steps_down, carry_daura_walk, carry_daur
   * **Skin and eyes render opaque.** MPFB exports every MakeHuman material as alpha-blended, which let eyeballs and the mouth interior show through faces as red blotches.
   * **Brown irises.** The default eye texture's red-brown iris was re-hued to a luminance-matched warm brown. In the soft preview light some still read dark grey-brown.
   * **Plane-cut collars.** These replace the earlier sawtooth necklines.
+* **Faces, round 2:**
+  * **Every person has their own face.** Each spec now sets 8–13 MakeHuman detail targets: nose width and flare, lip volume, cheekbones, jaw and chin, eye size and bags.
+  * **Approximate South Asian features.** MakeHuman has no South Asian preset, so the ethnicity mix moved toward European/African with little East Asian.
+  * **Skin pores.** A tiled pore normal map makes the skin less plastic.
+  * **Brown eyes with a highlight.** The irises are warm brown and the cornea is glossy, so the eyes catch the light.
+  * **Still not photoreal.** The hair is still a solid shell, and up close they look like good game characters. Close-ups therefore show real photographs (`src/content/photos.ts`).
 * No per-finger grip on the lota/soop handles: the props sit in hand/two-palm sockets.
