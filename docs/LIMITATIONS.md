@@ -5,7 +5,7 @@ Honest status of what is and isn't finished.
 ## Visual assets
 - **Environments and props are procedural low-poly**, built from primitives in code (`src/three/`). They are stylised, not a photoreal recreation.
 - **Characters are rigged MakeHuman/MPFB models (CC0)** generated in CI. They are realistic in proportion, with hands, faces and cloth-simulated garments, but **not photoreal**: faces are generic, skin is tinted from a non-South-Asian preset, and the garments are generated rather than tailored. See [VISUAL_AUDIT.md §8](VISUAL_AUDIT.md).
-- **Animation clips are keyframed, not motion-captured.** Ritual postures are simple static holds. There is no foot IK on the steps and no finger-level grip on props.
+- **Animation clips are keyframed, not motion-captured.** Ritual postures are simple static holds. Feet are planted on the ghat steps by a runtime 2-bone foot IK, and cotton darkens/glosses below the waterline (then dries slowly), but there is no finger-level grip on props: the soop is held in a socket between both palms.
 - **Water reflections are stylised** (sky + sun glitter + lamp shimmer + ripples). Devotees and diyas are not mirrored in the water.
 - **No photography.** `imagePath` is optional in the data model and currently unused; object views are SVG illustrations or procedural 3D.
 - **No Open Graph image** (social previews show title/description only).

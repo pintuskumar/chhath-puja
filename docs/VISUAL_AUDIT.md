@@ -119,8 +119,9 @@ The existing hotspots, panels, scroll story, controls, language, audio and progr
 | Asset validator `npm run check:models` (rig, fingers, grip sockets, clips, budgets, licence) and optimiser `npm run models:optimize` | ✅ |
 | Export guide for you: [METAHUMAN_GUIDE.md](METAHUMAN_GUIDE.md) | ✅ |
 | `vrati_a.glb` + core clips (MetaHuman, saree, mocap) | ⏳ **waiting on you** |
-| Hand IK, foot IK on steps, wet-saree material | ⏳ after the first real asset (needs the real skeleton to tune) |
-| Before/after Sandhya Arghya with identical cameras | ⏳ after the first real asset |
+| Foot IK on steps, wet-saree material | ✅ shipped (see §8) |
+| Hand IK (per-finger grip) | ⏳ not done: the soop sits in a two-palm socket |
+| Before/after Sandhya Arghya with identical cameras | ✅ §8 |
 
 ## 8. Result: the MakeHuman / MPFB route (shipped)
 
@@ -156,5 +157,10 @@ Clips: `idle_stand, walk_barefoot, walk_steps_down, carry_daura_walk, carry_daur
 
 * **Not photoreal.** MakeHuman bodies and skin are a clear step above primitives, but faces are generic, skin shading is simple, and there is no South Asian skin preset (the skin is tinted from the closest one).
 * **Clips are keyframed, not motion-captured.** Poses are authored from world-space limb directions plus 2-bone IK, the walk keeps its feet grounded, and every clip loops seamlessly. The ritual postures (holding/raising the soop, namaste, bowing) are deliberately simple and static, not invented choreography. They should still be reviewed by someone who performs the vrat.
-* No foot IK on the ghat steps, no wet-saree shader, and no per-finger grip on the lota/soop handles yet.
-* `child.glb` is 17.5k triangles against a 15k budget (validator warning). The decimation ratio is already at its floor, so the garments need fewer polygons.
+* **Added after the first ship:**
+  * **Foot IK.** The pelvis follows the lower foot's step height, and the other leg is lifted by an analytic 2-bone IK with the foot kept flat (`RiggedDevotee.tsx`, `ground` prop from `GhatEnvironment`).
+  * **Wet cotton.** Below the waterline, cloth materials get darker and glossier, plus a short wicking band. The cloth dries over about 2 min after leaving the river.
+  * **Skin and eyes render opaque.** MPFB exports every MakeHuman material as alpha-blended, which let eyeballs and the mouth interior show through faces as red blotches.
+  * **Brown irises.** The default eye texture's red-brown iris was re-hued.
+  * **Plane-cut collars.** These replace the earlier sawtooth necklines.
+* No per-finger grip on the lota/soop handles: the props sit in hand/two-palm sockets.
