@@ -17,7 +17,7 @@ One-time setup (repository admin):
 `vercel.json` is included. Steps:
 
 1. vercel.com → **Add New… → Project** → import `pintuskumar/chhath-puja`.
-2. Leave the detected settings as they are (`vercel.json` sets framework, install/build commands and the `out` directory). **Root Directory:** the repo root.
+2. Leave the settings as they are. `vercel.json` sets **Framework: Other** (`"framework": null`), the install/build commands and the `out` output directory. This is required: the site is a static export, and Vercel's Next.js preset would look for `.next/routes-manifest.json` and fail. **Root Directory:** the repo root.
 3. **Deploy.** Every push to any branch gets a preview URL; the production branch gets the production domain.
 
 Notes:
