@@ -141,9 +141,30 @@ if hair and S.get("head_covered"):
     eye_z = L["Head"].z + 0.06
     front = [f for f in hb.faces if (hair.matrix_world @ f.calc_center_median()).y < -0.06 and (hair.matrix_world @ f.calc_center_median()).z < eye_z + 0.07]
     bmesh.ops.delete(hb, geom=front, context="FACES")
+    # under the pallu: the braid/long hair below the skull base is hidden anyway and
+    # used to poke out of the drape at the back → remove it …
+    low = [f for f in hb.faces if (hair.matrix_world @ f.calc_center_median()).z < L["Head"].z + 0.02]
+    bmesh.ops.delete(hb, geom=low, context="FACES")
+    bmesh.ops.delete(hb, geom=[v for v in hb.verts if not v.link_faces], context="VERTS")
+    # … and keep what remains close to the skull (the drape is built just outside the head)
+    hv = np.array([(body.matrix_world @ v.co)[:] for v in body.data.vertices])
+    hv = hv[hv[:, 2] > L["Head"].z + 0.04]
+    hcx, hcy = hv[:, 0].mean(), hv[:, 1].mean()
+    skull_r = max(np.abs(hv[:, 0] - hcx).max(), np.abs(hv[:, 1] - hcy).max())
+    mw, mwi = hair.matrix_world, hair.matrix_world.inverted()
+    pulled = 0
+    for v in hb.verts:
+        w = mw @ v.co
+        dx, dy = w.x - hcx, w.y - hcy
+        r = math.hypot(dx, dy)
+        lim = skull_r + 0.01
+        if r > lim:
+            k = lim / r
+            v.co = mwi @ Vector((hcx + dx * k, hcy + dy * k, w.z))
+            pulled += 1
     hb.to_mesh(hair.data)
     hb.free()
-    log("trimmed fringe faces:", len(front))
+    log("trimmed fringe faces:", len(front), "below skull:", len(low), "pulled in:", pulled)
 if hair:
     tint_image_node(hair, S.get("hair_tint", [0.07, 0.05, 0.045]), f"{SPEC_ID}_hair")
 

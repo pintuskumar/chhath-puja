@@ -103,6 +103,21 @@ for (const [vpName, viewport] of [
     if (!n) errors.push(`[${vpName}] realistic characters did not mount on the arghya scene`);
   }
 
+  // Before/after comparison frame: same scene + camera (ghat-closeup) as docs/audit/before-*,
+  // with the sun pinned to the before frame's 4:55 pm so only the characters differ.
+  await page.goto(`${BASE}/day/sandhya-arghya/#sandhya-arghya`, { waitUntil: "networkidle" });
+  await wait(6000);
+  const pinned = await page.evaluate(() => {
+    const el = [...document.querySelectorAll('input[type="range"]')].find((e) => Number(e.max) > 12);
+    if (!el) return false;
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(el, "16.9");
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  });
+  if (!pinned) console.log(`${vpName}: time slider not found, comparison frame uses the scene's clock`);
+  await wait(3000);
+  await shot(page, `compare-${vpName}-sandhya-arghya`);
+
   // Language switch
   if (viewport.width < 640) await page.getByRole("button", { name: "मेनू" }).click().catch(() => errors.push(`[${vpName}] no menu button`));
   await page.getByRole("button", { name: "English" }).first().click().catch(() => errors.push(`[${vpName}] no English button`));
