@@ -456,22 +456,12 @@ def c_stir(t):
     curl("Right", 50)
 
 
-def dbg(tag):
-    log("  dbg", tag, {n: tuple(round(c, 2) for c in wpos(n)) for n in ("Hips", "Spine", "Spine2", "RightArm")})
-
-
 def c_sweep(t):
-    d = dbg if t == 0 else (lambda tag: None)
-    d("rest")
     shift("Hips", (0, 0.03, 0))
-    d("shift")
     legs_stand(spread=0.06, knee=30)
-    d("legs")
     sw = math.sin(2 * math.pi * t)
     spine(fwd=50, twist=-6 * sw)
-    d("spine")
     head(pitch_deg=-12)
-    d("head")
     hip = wpos("Hips")
     two_bone("RightArm", "RightForeArm", front_of(Vector((hip.x, hip.y, FOOT_Z)), 0.38, 0.42, -0.05 + 0.22 * sw), Vector((-1, 0.4, -0.3)))
     orient_hand("Right", Vector((0.15 * sw, -0.3, -1)), FWD)
@@ -562,6 +552,7 @@ for name, secs, fn in CLIPS:
     tr = rig.animation_data.nla_tracks.new()
     tr.name = name
     tr.strips.new(name, 1, act)
+    tr.mute = True  # finished clips must not leak into the next clip's empty first key
     actions.append((name, secs, act))
     errs = {k.replace("ForeArm", ""): round(v * 100, 1) for k, v in IK_ERR.items()}
     log(f"clip {name}: {secs}s, {n_keys + 1} keys, IK reach error cm {errs}")
@@ -569,6 +560,8 @@ for name, secs, fn in CLIPS:
 rig.animation_data.action = None
 
 # ── export (armature only) ──
+for tr in rig.animation_data.nla_tracks:
+    tr.mute = False
 bpy.ops.object.select_all(action="DESELECT")
 rig.select_set(True)
 bpy.context.view_layer.objects.active = rig
