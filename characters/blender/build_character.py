@@ -186,7 +186,7 @@ for v in body.data.vertices:
         W[v.index, g.group] = g.weight
 
 
-def skin_from_body(obj, k=4, pelvis_blend=None):
+def skin_from_body(obj, k=4, pelvis_blend=None, no_arms=False):
     """Copy armature weights from the nearest body vertices (inverse-distance)."""
     for gn in group_names:
         if gn not in obj.vertex_groups:
@@ -201,6 +201,12 @@ def skin_from_body(obj, k=4, pelvis_blend=None):
             acc += W[idx] * f
             wsum += f
         acc /= max(wsum, 1e-6)
+        if no_arms:
+            for gi, gn in enumerate(group_names):
+                if any(t in gn for t in ("Arm", "Hand")):
+                    acc[gi] = 0.0
+            if acc.sum() < 1e-4 and "mixamorig:Spine2" in group_names:
+                acc[group_names.index("mixamorig:Spine2")] = 1.0
         if pelvis_blend is not None and hips is not None:
             t = pelvis_blend(co)
             acc = acc * (1 - t)
@@ -372,7 +378,7 @@ def ribbon(name, path_pts, width, offset, mat, border_mat, samples=90, across=8,
     for _ in range(4):
         bmesh.ops.smooth_vert(bm, verts=bm.verts, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
     ob = new_obj(name, bm, [mat, border_mat])
-    skin_from_body(ob, k=6)
+    skin_from_body(ob, k=6, no_arms=True)
     return ob
 
 
@@ -384,7 +390,8 @@ def hood(name, offset, mat, border_mat, open_deg=62, rows=28, segs=64):
     head_r = max(np.abs(head[:, 0] - hx).max(), np.abs(head[:, 1] - hy).max())
     shoulders = body_slab(L["LeftArm"].z - 0.03, L["LeftArm"].z + 0.03, torso_only=False)
     sh_r = np.abs(shoulders[:, 0] - hx).max() * 0.92
-    z_top, z_bot = head_top_z + offset, L["Spine2"].z - 0.02
+    hair_top = max((hair.matrix_world @ v.co).z for v in hair.data.vertices) if hair else head_top_z
+    z_top, z_bot = max(head_top_z, hair_top) + 0.012, L["Spine2"].z - 0.02
     z_crown = L["Head"].z + 0.06
     bm = bmesh.new()
     grid = []
@@ -392,12 +399,15 @@ def hood(name, offset, mat, border_mat, open_deg=62, rows=28, segs=64):
     for r in range(rows + 1):
         t = r / rows
         z = z_top - (z_top - z_bot) * t
-        if z >= z_crown:  # dome over the crown
-            k = (z_top - z) / (z_top - z_crown)
-            rad = (head_r + offset) * math.sin(min(1.0, k) * math.pi / 2) ** 0.8
-        else:  # falls from the head, widening over the shoulders
-            k = (z_crown - z) / (z_crown - z_bot)
-            rad = (head_r + offset) + (sh_r + 0.03 - head_r - offset) * (k ** 1.4)
+        R = head_r + offset
+        if z >= z_crown:  # round dome over the crown
+            k = min(1.0, (z_top - z) / (z_top - z_crown))
+            rad = R * math.sqrt(max(0.0, 1 - (1 - k) ** 2))
+        elif z >= L["Neck"].z:  # straight down past the ears
+            rad = R
+        else:  # flares only below the neck, over the shoulders and back
+            k = (L["Neck"].z - z) / max(L["Neck"].z - z_bot, 1e-3)
+            rad = R + (sh_r + 0.02 - R) * (k ** 1.2)
         rad = max(rad, 0.004)
         row = []
         for sgi in range(segs + 1):
@@ -419,7 +429,7 @@ def hood(name, offset, mat, border_mat, open_deg=62, rows=28, segs=64):
     bmesh.ops.remove_doubles(bm, verts=grid[0], dist=0.006)
     bm.normal_update()
     ob = new_obj(name, bm, [mat, border_mat])
-    skin_from_body(ob, k=6)
+    skin_from_body(ob, k=6, no_arms=True)
     # everything above the neck follows the head only (no stretching from shoulders)
     hg = ob.vertex_groups.get("mixamorig:Head")
     for v in ob.data.vertices:
@@ -483,7 +493,7 @@ if kind == "saree":
     ]
     garments.append(ribbon("pallu", path, 0.24, 0.016, main, border, border_side=1))
     if S.get("head_covered", True):
-        garments.append(hood("pallu_head", 0.035, main, border))
+        garments.append(hood("pallu_head", 0.022, main, border))
     red = cloth_mat("sindoor", (0.72, 0.06, 0.08), rough=0.5, sheen=0)
     top = Vector((0, L["Head"].y - 0.04, head_top_z - 0.004))
     fh = forehead_point(head_top_z - 0.072)
