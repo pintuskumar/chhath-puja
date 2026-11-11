@@ -150,7 +150,7 @@ if hair:
 # ───────────────────────── garment helpers ─────────────────────────
 
 
-def weave_images(name, rgb, size=512, threads=48, stripe=None):
+def weave_images(name, rgb, size=512, threads=28, stripe=None):
     """Plain-weave cotton: base colour (with slub variation) + tangent-space normal map."""
     rng = np.random.default_rng(abs(hash(name)) % 2**32)
     yy, xx = np.mgrid[0:size, 0:size].astype(np.float32) / size
@@ -159,7 +159,7 @@ def weave_images(name, rgb, size=512, threads=48, stripe=None):
     weft = 0.5 + 0.5 * np.cos(py)
     over = (np.floor(xx * threads) + np.floor(yy * threads)) % 2
     height = np.where(over > 0, warp * 0.8 + weft * 0.2, weft * 0.8 + warp * 0.2)
-    slub = np.repeat(rng.normal(0, 0.035, size), size).reshape(size, size)  # uneven yarn
+    slub = np.repeat(rng.normal(0, 0.06, size), size).reshape(size, size) + np.tile(rng.normal(0, 0.03, size), (size, 1))  # uneven yarn
     lum = 0.86 + 0.16 * height + slub + rng.normal(0, 0.015, (size, size))
     col = np.stack([np.clip(rgb[i] * lum, 0, 1) for i in range(3)], axis=-1)
     if stripe:  # woven border lines (e.g. gold thread in a red border)
@@ -245,8 +245,13 @@ for v in body.data.vertices:
         W[v.index, g.group] = g.weight
 
 
-def skin_from_body(obj, k=4, pelvis_blend=None, no_arms=False):
+SKIN_ARGS = {}
+
+
+def skin_from_body(obj, k=4, pelvis_blend=None, no_arms=False, _remember=True):
     """Copy armature weights from the nearest body vertices (inverse-distance)."""
+    if _remember:
+        SKIN_ARGS[obj.name] = dict(k=k, pelvis_blend=pelvis_blend, no_arms=no_arms)
     for gn in group_names:
         if gn not in obj.vertex_groups:
             obj.vertex_groups.new(name=gn)
@@ -276,10 +281,11 @@ def skin_from_body(obj, k=4, pelvis_blend=None, no_arms=False):
         for gi in np.argsort(-acc)[:4]:
             if acc[gi] > 0.01:
                 obj.vertex_groups[group_names[gi]].add([v.index], float(acc[gi]), "REPLACE")
-    mod = obj.modifiers.new("Armature", "ARMATURE")
-    mod.object = rig
-    obj.parent = rig
-    obj.matrix_parent_inverse = rig.matrix_world.inverted()
+    if "Armature" not in obj.modifiers:
+        mod = obj.modifiers.new("Armature", "ARMATURE")
+        mod.object = rig
+        obj.parent = rig
+        obj.matrix_parent_inverse = rig.matrix_world.inverted()
 
 
 def new_obj(name, bm, mats):
@@ -586,6 +592,69 @@ else:  # kurta_pyjama / child
     garments.append(body_shell("kurta", TORSO + ["mixamorig:LeftForeArm", "mixamorig:RightForeArm", "mixamorig:LeftUpLeg", "mixamorig:RightUpLeg"], hips_z - 0.22, neck_z - 0.01, 0.006, kurta, sleeve_z_min=0))
     py = cloth_mat("pyjama", C.get("pyjama", (0.94, 0.92, 0.85)))
     garments.append(body_shell("pyjama", ["mixamorig:Hips", "mixamorig:LeftUpLeg", "mixamorig:RightUpLeg", "mixamorig:LeftLeg", "mixamorig:RightLeg"], foot_z + 0.06, hips_z + 0.05, 0.007, py))
+
+
+# ───────────────────────── cloth simulation (real drape) ─────────────────────────
+def simulate(objs_pins, frames=36):
+    """objs_pins: [(object, pin_test(world_co) -> bool)]. Simulates in the rest pose."""
+    col = body.modifiers.new("collide", "COLLISION")
+    body.collision.thickness_outer = 0.006
+    body.collision.cloth_friction = 8
+    for ob, pin_test in objs_pins:
+        g = ob.vertex_groups.new(name="pin")
+        g.add([v.index for v in ob.data.vertices if pin_test(ob.matrix_world @ v.co)], 1.0, "REPLACE")
+        m = ob.modifiers.new("cloth", "CLOTH")
+        c = m.settings
+        c.quality = 6
+        c.mass = 0.18           # cotton
+        c.tension_stiffness = 12
+        c.compression_stiffness = 12
+        c.shear_stiffness = 6
+        c.bending_stiffness = 0.6
+        c.air_damping = 1.5
+        c.vertex_group_mass = "pin"
+        m.collision_settings.use_collision = True
+        m.collision_settings.distance_min = 0.004
+        m.collision_settings.use_self_collision = False
+        m.point_cache.frame_start, m.point_cache.frame_end = 1, frames
+    scn = bpy.context.scene
+    scn.frame_start, scn.frame_end = 1, frames
+    for f in range(1, frames + 1):
+        scn.frame_set(f)
+    dg = bpy.context.evaluated_depsgraph_get()
+    for ob, _ in objs_pins:
+        ev = ob.evaluated_get(dg)
+        me = ev.to_mesh()
+        co = np.empty(len(me.vertices) * 3, dtype=np.float32)
+        me.vertices.foreach_get("co", co)
+        ev.to_mesh_clear()
+        ob.modifiers.remove(ob.modifiers["cloth"])
+        ob.data.vertices.foreach_set("co", co)
+        ob.data.update()
+        ob.vertex_groups.remove(ob.vertex_groups["pin"])
+        # re-skin from the draped positions
+        for g in list(ob.vertex_groups):
+            ob.vertex_groups.remove(g)
+        skin_from_body(ob, _remember=False, **SKIN_ARGS[ob.name])
+        moved = "ok"
+        log(f"draped {ob.name}: {moved}")
+    body.modifiers.remove(col)
+    scn.frame_set(1)
+
+
+by_name = {g.name: g for g in garments}
+to_sim = []
+if "saree_skirt" in by_name:
+    to_sim.append((by_name["saree_skirt"], lambda co: co.z > hips_z + 0.02))
+if "dhoti" in by_name:
+    to_sim.append((by_name["dhoti"], lambda co: co.z > hips_z - 0.02))
+if "pallu_head" in by_name:
+    to_sim.append((by_name["pallu_head"], lambda co: co.z > L["Head"].z + 0.07))
+if to_sim:
+    try:
+        simulate(to_sim)
+    except Exception as e:  # keep the un-simulated garment rather than failing the build
+        log("cloth simulation failed:", repr(e))
 
 for g in garments:
     cylindrical_uv(g)

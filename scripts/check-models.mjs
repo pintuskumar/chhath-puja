@@ -43,7 +43,7 @@ function tris(json) {
   return n;
 }
 
-const nodeNames = (json) => new Set((json.nodes ?? []).map((n) => n.name));
+const nodeNames = (json) => new Set((json.nodes ?? []).map((n) => (n.name ?? "").replace(/[:.\[\]/]/g, "")));
 const MB = (b) => (b / 1048576).toFixed(2) + " MB";
 
 const chars = Object.entries(manifest.characters ?? {});
