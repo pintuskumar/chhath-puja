@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { Noto_Sans_Devanagari, Inter, Tiro_Devanagari_Hindi } from "next/font/google";
+import { Noto_Sans_Devanagari, Tiro_Devanagari_Hindi } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -8,18 +8,21 @@ import { ClientBoot } from "@/components/ClientBoot";
 import { SkipLink } from "@/components/layout/SkipLink";
 import { SITE_URL, asset } from "@/lib/paths";
 
+// Noto Sans Devanagari covers both Devanagari and Latin, so one family serves Hindi and English.
+// Only the Devanagari subset is preloaded; Latin glyphs load on demand via unicode-range.
 const devanagari = Noto_Sans_Devanagari({
-  subsets: ["devanagari", "latin"],
-  weight: ["400", "500", "600", "700"],
+  subsets: ["devanagari"],
+  weight: ["400", "600", "700"],
   variable: "--font-hindi",
   display: "swap",
 });
-const inter = Inter({ subsets: ["latin"], variable: "--font-en", display: "swap" });
+// Decorative headings: not preloaded, so it never competes with first paint.
 const display = Tiro_Devanagari_Hindi({
-  subsets: ["devanagari", "latin"],
+  subsets: ["devanagari"],
   weight: "400",
   variable: "--font-display",
   display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -51,7 +54,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="hi" className={`${devanagari.variable} ${inter.variable} ${display.variable}`} data-motion="full">
+    <html lang="hi" className={`${devanagari.variable} ${display.variable}`} data-motion="full">
       <body>
         <ClientBoot />
         <SkipLink />

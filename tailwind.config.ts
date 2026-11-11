@@ -15,7 +15,7 @@ const config: Config = {
         night: "#101D38",
       },
       fontFamily: {
-        sans: ["var(--font-hindi)", "var(--font-en)", "Mukta", "system-ui", "sans-serif"],
+        sans: ["var(--font-hindi)", "Mukta", "system-ui", "sans-serif"],
         display: ["var(--font-display)", "var(--font-hindi)", "serif"],
       },
       boxShadow: {
