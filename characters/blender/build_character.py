@@ -163,6 +163,13 @@ bm_body = bmesh.new()
 bm_body.from_mesh(body.data)
 bm_body.transform(body.matrix_world)
 bvh = BVHTree.FromBMesh(bm_body)
+_dl = bm_body.verts.layers.deform.verify()
+bm_torso = bm_body.copy()
+_dlt = bm_torso.verts.layers.deform.verify()
+_arm_names = {"mixamorig:" + n for n in ("LeftArm", "RightArm", "LeftForeArm", "RightForeArm", "LeftHand", "RightHand")}
+_arm_idx = [i for i, g in enumerate(body.vertex_groups) if g.name in _arm_names or "Hand" in g.name]
+bmesh.ops.delete(bm_torso, geom=[f for f in bm_torso.faces if sum(sum(v[_dlt].get(g, 0.0) for g in _arm_idx) for v in f.verts) / len(f.verts) > 0.3], context="FACES")
+bvh_torso = BVHTree.FromBMesh(bm_torso)
 group_names = [g.name for g in body.vertex_groups]
 W = np.zeros((len(body.data.vertices), len(group_names)), dtype=np.float32)
 for v in body.data.vertices:
@@ -214,13 +221,19 @@ def new_obj(name, bm, mats):
     return ob
 
 
-def body_slab(z0, z1):
-    sel = body_world[(body_world[:, 2] >= z0) & (body_world[:, 2] < z1)]
-    return sel
+ARM_GROUPS = [i for i, g in enumerate(group_names) if any(k in g for k in ("Arm", "Hand", "Shoulder"))]
+not_arm = W[:, ARM_GROUPS].sum(axis=1) < 0.2 if ARM_GROUPS else np.ones(len(W), bool)
 
 
-def push_to_surface(p, offset):
-    loc, nrm, _, _ = bvh.find_nearest(Vector(p))
+def body_slab(z0, z1, torso_only=True):
+    m = (body_world[:, 2] >= z0) & (body_world[:, 2] < z1)
+    if torso_only:
+        m &= not_arm
+    return body_world[m]
+
+
+def push_to_surface(p, offset, tree=None):
+    loc, nrm, _, _ = (tree or bvh).find_nearest(Vector(p))
     if loc is None:
         return Vector(p)
     return loc + nrm * offset
@@ -331,13 +344,13 @@ def ribbon(name, path_pts, width, offset, mat, border_mat, samples=60, across=6,
     grid = []
     for i, c in enumerate(centre):
         tang = (centre[min(i + 1, samples)] - centre[max(i - 1, 0)]).normalized()
-        loc, nrm, _, _ = bvh.find_nearest(c)
+        loc, nrm, _, _ = bvh_torso.find_nearest(c)
         n = nrm if nrm is not None else Vector((0, -1, 0))
         side = tang.cross(n).normalized()
         row = []
         for k in range(across + 1):
             u = (k / across - 0.5) * width
-            p = push_to_surface(c + side * u, offset)
+            p = push_to_surface(c + side * u, offset, bvh_torso)
             row.append(bm.verts.new(p))
         grid.append(row)
     for i in range(samples):
@@ -362,8 +375,8 @@ def hood(name, offset, mat, border_mat):
     for f in bm.faces:
         c = f.calc_center_median()
         w = sum(sum(v[dl].get(g, 0.0) for g in gidx) for v in f.verts) / len(f.verts)
-        brow = L["Head"].z + 0.075
-        is_face = c.y < face_front_y and c.z < brow
+        hairline = head_top_z - 0.055
+        is_face = c.y < face_front_y and c.z < hairline
         if w < 0.35 or is_face or c.z < L["Neck"].z - 0.02:
             kill.append(f)
     bmesh.ops.delete(bm, geom=kill, context="FACES")
@@ -373,9 +386,17 @@ def hood(name, offset, mat, border_mat):
         if v.co.z < L["Head"].z:  # fall outward over the neck like cloth
             v.co.x *= 1.0 + (L["Head"].z - v.co.z) * 1.6
             v.co.y += (L["Head"].z - v.co.z) * 0.25
-    # front edge = border
+    # border = faces touching the open edge on the front half (frames the face)
     for f in bm.faces:
-        f.material_index = 1 if f.calc_center_median().y < face_front_y + 0.03 else 0
+        on_edge = any(e.is_boundary for e in f.edges)
+        f.material_index = 1 if on_edge and f.calc_center_median().y < L["Head"].y + 0.02 else 0
+    # widen the border band by one ring
+    ring = {f for f in bm.faces if f.material_index == 1}
+    for f in list(ring):
+        for e in f.edges:
+            for g in e.link_faces:
+                if g.calc_center_median().y < L["Head"].y + 0.02:
+                    g.material_index = 1
     bm.verts.layers.deform.remove(dl)
     ob = new_obj(name, bm, [mat, border_mat])
     skin_from_body(ob)
@@ -426,12 +447,12 @@ if kind == "saree":
         (lx - 0.06, L["Neck"].y + 0.14, L["Spine"].z),
         (lx - 0.08, L["Neck"].y + 0.15, hips_z + 0.02),
     ]
-    garments.append(ribbon("pallu", path, 0.30, 0.018, main, border, border_side=1))
+    garments.append(ribbon("pallu", path, 0.24, 0.016, main, border, border_side=1))
     if S.get("head_covered", True):
         garments.append(hood("pallu_head", 0.03 if hair else 0.012, main, border))
     red = cloth_mat("sindoor", (0.72, 0.06, 0.08), rough=0.5, sheen=0)
-    top = Vector((0, L["Head"].y - 0.02, head_top_z - 0.012))
-    garments.append(dot("bindi", (0, L["Head"].y - 0.2, L["Head"].z + 0.085), 0.0045, red))
+    top = Vector((0, L["Head"].y - 0.04, head_top_z - 0.004))
+    garments.append(dot("bindi", (0, -0.4, head_top_z - 0.085), 0.0045, red))
     garments.append(dot("sindoor", top, 0.006, red))
 elif kind == "dhoti_kurta":
     kurta = cloth_mat("kurta", C["main"])
