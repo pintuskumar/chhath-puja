@@ -22,6 +22,12 @@ for (const f of fs.readdirSync(dir).filter((f) => f.startsWith("lhr-") && f.ends
   if (lcpEl) console.log(`  LCP element: ${lcpEl.slice(0, 160)}`);
   const phases = lcpAudit?.details?.items?.[1]?.items?.map((i) => `${i.phase ?? i.label}:${Math.round(i.timing)}ms`);
   if (phases) console.log(`  LCP phases: ${phases.join(" ")}`);
+  if (process.env.LH_DEBUG) {
+    console.log("  LCP details:", JSON.stringify(lcpAudit?.details)?.slice(0, 900));
+    const reqs = r.audits["network-requests"]?.details?.items ?? [];
+    const big = [...reqs].sort((a, b) => b.transferSize - a.transferSize).slice(0, 8);
+    for (const q of big) console.log(`  req ${Math.round(q.transferSize / 1024)}KB ${q.resourceType} ${q.url.split("/").pop()} start=${Math.round(q.networkRequestTime ?? q.startTime ?? 0)}`);
+  }
   const rb = r.audits["render-blocking-resources"]?.details?.items?.map((i) => i.url.split("/").pop());
   if (rb?.length) console.log(`  render-blocking: ${rb.join(" ")}`);
   const boot = r.audits["bootup-time"]?.details?.items?.slice(0, 4).map((i) => `${i.url.split("/").pop()}:${Math.round(i.total)}ms`);

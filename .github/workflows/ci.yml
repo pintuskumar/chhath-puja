@@ -58,6 +58,8 @@ jobs:
         run: npx --yes @lhci/cli@0.14.x autorun --config=./lighthouserc.json
       - name: Score summary
         if: always()
+        env:
+          LH_DEBUG: "1"
         run: node scripts/lh-summary.mjs .lighthouseci
 
   deploy:
