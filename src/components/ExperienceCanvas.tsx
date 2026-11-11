@@ -9,10 +9,11 @@
  *  - any WebGL failure → falls back to the 2D illustration
  */
 import { Component, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { useExperience, usePrefs } from "@/lib/store";
 import DayWorld, { type WorldProps } from "@/three/DayWorld";
+import { reportPerfDegraded } from "@/lib/device";
 
 class GLBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -43,6 +44,32 @@ function DemandInvalidator() {
   return null;
 }
 
+/**
+ * Frame-time guard: after a warm-up (shader compilation), if the median frame time
+ * stays above ~50 ms the canvas first drops resolution, then hands over to the 2D
+ * illustration. Usability over spectacle.
+ */
+function PerformanceGuard({ onSlow }: { onSlow: (step: number) => void }) {
+  const samples = useRef<number[]>([]);
+  const warm = useRef(0);
+  const step = useRef(0);
+  useFrame((_, delta) => {
+    warm.current += delta;
+    if (warm.current < 3 || step.current >= 2) return;
+    samples.current.push(delta);
+    if (samples.current.length < 60) return;
+    const sorted = samples.current.sort((a, b) => a - b);
+    const median = sorted[30];
+    samples.current = [];
+    if (median > 0.05) {
+      step.current += 1;
+      warm.current = 1.5;
+      onSlow(step.current);
+    }
+  });
+  return null;
+}
+
 export interface ExperienceCanvasProps extends WorldProps {
   fallback: ReactNode;
   label: string;
@@ -54,6 +81,8 @@ export default function ExperienceCanvas({ fallback, label, className, ...world 
   const [onScreen, setOnScreen] = useState(true);
   const [tabVisible, setTabVisible] = useState(true);
   const [ready, setReady] = useState(false);
+  const [lowRes, setLowRes] = useState(false);
+  const forced3d = usePrefs((s) => s.renderer === "3d");
 
   useEffect(() => {
     const el = wrap.current;
@@ -69,7 +98,7 @@ export default function ExperienceCanvas({ fallback, label, className, ...world 
   }, []);
 
   const frameloop = !onScreen || !tabVisible ? "never" : world.reduced ? "demand" : "always";
-  const dpr: [number, number] = world.quality === "high" ? [1, 2] : world.quality === "medium" ? [1, 1.5] : [0.75, 1];
+  const dpr: [number, number] = lowRes ? [0.6, 0.75] : world.quality === "high" ? [1, 2] : world.quality === "medium" ? [1, 1.5] : [0.75, 1];
 
   return (
     <div ref={wrap} className={className} role="group" aria-label={label}>
@@ -96,6 +125,14 @@ export default function ExperienceCanvas({ fallback, label, className, ...world 
           aria-hidden="true"
         >
           {world.reduced && <DemandInvalidator />}
+          {!world.reduced && (
+            <PerformanceGuard
+              onSlow={(step) => {
+                if (step === 1) setLowRes(true);
+                else if (!forced3d) reportPerfDegraded();
+              }}
+            />
+          )}
           <Suspense fallback={null}>
             <DayWorld {...world} />
           </Suspense>

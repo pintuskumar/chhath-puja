@@ -41,7 +41,7 @@ export function DaysOverview() {
                   </div>
                   <div className="flex flex-1 flex-col p-5">
                     <h3 className="font-display text-3xl text-maroon">{t(d.title)}</h3>
-                    <p className="font-semibold text-saffron">{t(d.theme)}</p>
+                    <p className="font-semibold text-saffron-ink">{t(d.theme)}</p>
                     <p className="mt-1 text-sm text-night/70">
                       <time dateTime={d.date2026}>{formatDate(d.date2026, lang)}</time>
                     </p>

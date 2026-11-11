@@ -6,6 +6,8 @@ const config: Config = {
     extend: {
       colors: {
         saffron: "#E97824",
+        /** Saffron for text on light backgrounds (≥ 5.5:1 on cream). */
+        "saffron-ink": "#A3480B",
         gold: "#F6B93B",
         maroon: "#681C29",
         river: "#276C80",

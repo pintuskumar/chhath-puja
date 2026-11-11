@@ -99,7 +99,7 @@ export function JourneyTimeline() {
               <div className="p-6 md:p-8">
                 <SunMotif className="h-12 w-12" />
                 <h2 className="mt-2 font-display text-4xl text-maroon">{t(day.title)}</h2>
-                <p className="font-semibold text-saffron">
+                <p className="font-semibold text-saffron-ink">
                   {t(day.tithi)} · {t(day.theme)}
                 </p>
                 <p className="mt-3 leading-relaxed">{t(day.description)}</p>

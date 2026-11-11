@@ -3,18 +3,34 @@
 import { useEffect, useState } from "react";
 import { usePrefs, type Quality } from "./store";
 
-let webglCache: boolean | null = null;
+let webglCache: { ok: boolean; software: boolean } | null = null;
 
-export function hasWebGL(): boolean {
-  if (webglCache !== null) return webglCache;
-  if (typeof window === "undefined") return false;
+function probeWebGL() {
+  if (webglCache) return webglCache;
+  if (typeof window === "undefined") return { ok: false, software: false };
   try {
     const c = document.createElement("canvas");
-    webglCache = !!(c.getContext("webgl2") || c.getContext("webgl"));
+    const gl = (c.getContext("webgl2") || c.getContext("webgl")) as WebGLRenderingContext | null;
+    if (!gl) return (webglCache = { ok: false, software: false });
+    const ext = gl.getExtension("WEBGL_debug_renderer_info");
+    const renderer = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    // CPU rasterisers make every frame a long task — treat as "no GPU".
+    const software = /swiftshader|llvmpipe|softpipe|software|basic render/i.test(renderer);
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    webglCache = { ok: true, software };
   } catch {
-    webglCache = false;
+    webglCache = { ok: false, software: false };
   }
   return webglCache;
+}
+
+export function hasWebGL(): boolean {
+  return probeWebGL().ok;
+}
+
+/** True when WebGL is only available through a CPU (software) renderer. */
+export function isSoftwareRenderer(): boolean {
+  return probeWebGL().software;
 }
 
 type NavExtras = Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
@@ -26,7 +42,7 @@ export function detectQuality(): Exclude<Quality, "auto"> {
   const mem = nav.deviceMemory ?? 4;
   const cores = nav.hardwareConcurrency ?? 4;
   const small = Math.min(window.innerWidth, window.innerHeight) < 500;
-  if (nav.connection?.saveData || mem <= 2 || cores <= 2) return "low";
+  if (nav.connection?.saveData || mem <= 2 || cores <= 2 || isSoftwareRenderer()) return "low";
   if (small || mem <= 4) return "medium";
   return "high";
 }
@@ -61,8 +77,23 @@ export function useEffectiveQuality(): Exclude<Quality, "auto"> {
  * Whether to render real-time 3D. Starts false (SSR + first paint show the 2D
  * illustration, which is also the LCP-friendly path) and upgrades after mount.
  */
+let perfDegraded = false;
+const degradeListeners = new Set<() => void>();
+/** Called by the frame-time guard when a device cannot sustain the 3D scene. */
+export function reportPerfDegraded() {
+  if (perfDegraded) return;
+  perfDegraded = true;
+  degradeListeners.forEach((l) => l());
+}
+
 export function use3D() {
   const renderer = usePrefs((s) => s.renderer);
+  const [degradedTick, setTick] = useState(0);
+  useEffect(() => {
+    const l = () => setTick((n) => n + 1);
+    degradeListeners.add(l);
+    return () => void degradeListeners.delete(l);
+  }, []);
   const idle = useIdleAfterLoad();
   const [ok, setOk] = useState(false);
   useEffect(() => {
@@ -70,8 +101,9 @@ export function use3D() {
     if (renderer === "2d") return setOk(false);
     if (!hasWebGL()) return setOk(false);
     if (renderer === "3d") return setOk(true);
+    if (perfDegraded) return setOk(false);
     setOk(detectQuality() !== "low");
-  }, [renderer, idle]);
+  }, [renderer, idle, degradedTick]);
   return ok;
 }
 
