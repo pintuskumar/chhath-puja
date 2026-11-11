@@ -161,6 +161,6 @@ Clips: `idle_stand, walk_barefoot, walk_steps_down, carry_daura_walk, carry_daur
   * **Foot IK.** The pelvis follows the lower foot's step height, and the other leg is lifted by an analytic 2-bone IK with the foot kept flat (`RiggedDevotee.tsx`, `ground` prop from `GhatEnvironment`).
   * **Wet cotton.** Below the waterline, cloth materials get darker and glossier, plus a short wicking band. The cloth dries over about 2 min after leaving the river.
   * **Skin and eyes render opaque.** MPFB exports every MakeHuman material as alpha-blended, which let eyeballs and the mouth interior show through faces as red blotches.
-  * **Brown irises.** The default eye texture's red-brown iris was re-hued.
+  * **Brown irises.** The default eye texture's red-brown iris was re-hued to a luminance-matched warm brown. In the soft preview light some still read dark grey-brown.
   * **Plane-cut collars.** These replace the earlier sawtooth necklines.
 * No per-finger grip on the lota/soop handles: the props sit in hand/two-palm sockets.
