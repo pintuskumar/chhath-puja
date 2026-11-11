@@ -71,19 +71,19 @@ jobs:
           if titles:
               items, width = info(titles, 1280), 1280
           else:
-              cats = ["Category:Chhath Puja", "Category:Chhath Puja in Bihar", "Category:Chhath Puja in Patna",
-                      "Category:Chhath Puja in Nepal", "Category:Chhath Puja in Delhi", "Category:Chhath Puja in Kolkata",
-                      "Category:Chhath Puja in Mumbai", "Category:Chhath Puja in Jharkhand", "Category:Chhath Puja in Uttar Pradesh",
-                      "Category:Chhath Puja 2023", "Category:Chhath Puja 2022", "Category:Chhath Puja 2021", "Category:Chhath Puja 2019"]
+              queries = ["Chhath", "Chhath puja arghya", "Chhath ghat", "Chhath vrati", "Chhath soop", "Chhath daura",
+                         "Chhath sunrise", "Chhath sunset", "Kharna prasad", "Thekua", "Chhath Patna", "Chhath women river",
+                         "छठ", "छठ पूजा"]
               seen = []
-              for c in cats:
-                  cont = {}
-                  while True:
-                      d = get(action="query", list="categorymembers", cmtitle=c, cmtype="file", cmlimit=200, **cont)
-                      seen += [m["title"] for m in d.get("query", {}).get("categorymembers", [])]
-                      if "continue" not in d: break
-                      cont = d["continue"]
-                  print(c, len(seen))
+              for q in queries:
+                  off = 0
+                  while off < 500:
+                      d = get(action="query", list="search", srsearch=f"{q} filetype:bitmap", srnamespace=6, srlimit=100, sroffset=off)
+                      hits = d.get("query", {}).get("search", [])
+                      seen += [m["title"] for m in hits]
+                      if "continue" not in d or not hits: break
+                      off = d["continue"]["sroffset"]
+                  print(q, len(seen))
               seen = list(dict.fromkeys(seen))
               items, width = info(seen, 400), 400
               items = [x for x in items if x["w"] >= 1200]  # need enough resolution for a close-up
