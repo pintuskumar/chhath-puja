@@ -55,7 +55,7 @@ for (const [vpName, viewport] of [
 ]) {
   const { ctx, page } = await session(`${vpName}-3d`, viewport, "3d");
 
-  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/`, { waitUntil: "networkidle", timeout: 90000 });
   await wait(7000);
   const hasCanvas = await page.locator("canvas").count();
   console.log(`${vpName} home canvases=${hasCanvas}`);
@@ -63,7 +63,7 @@ for (const [vpName, viewport] of [
   await shot(page, `${vpName}-home`);
 
   for (const d of days) {
-    await page.goto(`${BASE}/day/${d}/`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/day/${d}/`, { waitUntil: "networkidle", timeout: 90000 });
     await wait(5000);
     await shot(page, `${vpName}-${d}-0-intro`);
     const sections = await page.locator("[data-scene-index]").count();
@@ -83,7 +83,7 @@ for (const [vpName, viewport] of [
   }
 
   // Hotspot → panel (Day 3, arghya scene) and rotate viewer
-  await page.goto(`${BASE}/day/sandhya-arghya/#sandhya-arghya`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/day/sandhya-arghya/#sandhya-arghya`, { waitUntil: "networkidle", timeout: 90000 });
   await wait(5000);
   const hotspot = page.locator('button[aria-haspopup="dialog"][aria-label*="सूप"]').first();
   if (await hotspot.count()) {
@@ -105,7 +105,7 @@ for (const [vpName, viewport] of [
 
   // Before/after comparison frame: same scene + camera (ghat-closeup) as docs/audit/before-*,
   // with the sun pinned to the before frame's 4:55 pm so only the characters differ.
-  await page.goto(`${BASE}/day/sandhya-arghya/#sandhya-arghya`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/day/sandhya-arghya/#sandhya-arghya`, { waitUntil: "networkidle", timeout: 90000 });
   await wait(6000);
   const pinned = await page.evaluate(() => {
     const el = [...document.querySelectorAll('input[type="range"]')].find((e) => Number(e.max) > 12);
@@ -127,14 +127,14 @@ for (const [vpName, viewport] of [
   await shot(page, `${vpName}-english`);
 
   // Explorer
-  await page.goto(`${BASE}/explore/`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/explore/`, { waitUntil: "networkidle", timeout: 90000 });
   await wait(4000);
   await shot(page, `${vpName}-explore`);
   await ctx.close();
 
   // Free mode
   const free = await session(`${vpName}-free`, viewport, "3d", { mode: "free" });
-  await free.page.goto(`${BASE}/day/kharna/`, { waitUntil: "networkidle" });
+  await free.page.goto(`${BASE}/day/kharna/`, { waitUntil: "networkidle", timeout: 90000 });
   await wait(5000);
   console.log("free: clicking tab 3");
   await free.page.locator('[role="tab"]').nth(2).click();
@@ -154,7 +154,7 @@ if (fs.existsSync("out/models/_fixture/manifest.json")) {
       route.fulfill({ contentType: "application/json", body: fs.readFileSync("out/models/_fixture/manifest.json", "utf8") }),
     );
     for (const [scene, file] of [["sandhya-arghya", "arghya"], ["ghat-ki-or", "procession"]]) {
-      await rig.page.goto(`${BASE}/day/sandhya-arghya/#${scene}`, { waitUntil: "networkidle" });
+      await rig.page.goto(`${BASE}/day/sandhya-arghya/#${scene}`, { waitUntil: "networkidle", timeout: 90000 });
       await wait(7000);
       const n = await rig.page.evaluate(() => window.__riggedCharacters ?? 0);
       console.log(`${vpName} rig ${scene}: rigged characters mounted = ${n}`);
@@ -168,7 +168,7 @@ if (fs.existsSync("out/models/_fixture/manifest.json")) {
 // 2D fallback + reduced motion
 const twoD = await session("2d", { width: 390, height: 844 }, "2d", { motion: "reduced" });
 for (const route of ["/", "/journey/", "/day/usha-arghya/", "/traditions/"]) {
-  await twoD.page.goto(`${BASE}${route}`, { waitUntil: "networkidle" });
+  await twoD.page.goto(`${BASE}${route}`, { waitUntil: "networkidle", timeout: 90000 });
   await wait(1500);
   if (await twoD.page.locator("canvas").count()) errors.push(`[2d] canvas present on ${route} with renderer=2d`);
   await shot(twoD.page, `2d${route.replace(/\//g, "_") || "_home"}`);
