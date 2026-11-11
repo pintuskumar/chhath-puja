@@ -39,7 +39,12 @@ jobs:
         run: |
           [ -f blender.tar.xz ] || curl -fsSLo blender.tar.xz https://download.blender.org/release/Blender4.2/blender-4.2.9-linux-x64.tar.xz
           tar xf blender.tar.xz && mv blender-*-linux-x64 blender
-          sudo apt-get update -qq && sudo apt-get install -y -qq libxi6 libxkbcommon0 libxxf86vm1 libgl1 libegl1 libsm6 >/dev/null
+          # retry: the Ubuntu mirrors are sometimes unreachable from the runners for a few minutes
+          for i in 1 2 3 4 5; do
+            sudo apt-get update -qq -o Acquire::Retries=3 && \
+            sudo apt-get install -y -qq -o Acquire::Retries=3 libxi6 libxkbcommon0 libxxf86vm1 libgl1 libegl1 libsm6 >/dev/null && break
+            echo "apt attempt $i failed, retrying in 60 s"; sleep 60
+          done
           $BLENDER --version | head -1
 
       - name: Install MPFB extension
