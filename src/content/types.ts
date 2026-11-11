@@ -127,6 +127,23 @@ export interface Scene {
   visualDescription: L;
 }
 
+/**
+ * A real photograph of a scene's moment (src/content/photos.ts). Shown in the stage's
+ * close-up view and in the scene card; the 3D people stay for the wide shots.
+ */
+export interface ScenePhoto {
+  /** Path under public/, e.g. "/photos/vratis-in-yamuna.webp" (WebP, ≤ 1280 px). */
+  src: string;
+  width: number;
+  height: number;
+  alt: L;
+  caption: L;
+  /** Family photos: author = who took it; license = "family" (shared with permission). */
+  credit: { author: string; license: string; licenseUrl?: string; sourceUrl?: string };
+  /** CSS object-position for the full-stage crop, e.g. "50% 40%". */
+  focus?: string;
+}
+
 export interface TimeControl {
   kind: "slider" | "scroll";
   min: number;

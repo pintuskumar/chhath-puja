@@ -130,6 +130,27 @@ for (const [vpName, viewport] of [
   await wait(3000);
   await shot(page, `compare-${vpName}-sandhya-arghya`);
 
+  // Close-up view → real photograph of the moment (src/content/photos.ts), loaded and credited
+  try {
+    await page.getByRole("button", { name: "नज़दीक से" }).first().click({ timeout: 10000 });
+    const ok = await page
+      .waitForFunction(() => {
+        const img = document.querySelector('[data-testid="photo-closeup"] img');
+        return !!img && img.complete && img.naturalWidth > 0;
+      }, null, { timeout: 30000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!ok) errors.push(`[${vpName}] close-up photo did not load on the arghya scene`);
+    const credit = await page.locator('[data-testid="photo-closeup"] figcaption').innerText().catch(() => "");
+    if (!/CC BY|पारिवारिक|family/.test(credit)) errors.push(`[${vpName}] close-up photo has no credit/licence`);
+    await wait(1200);
+    await shot(page, `${vpName}-sandhya-arghya-photo-closeup`);
+    await page.getByRole("button", { name: "पूरा दृश्य" }).first().click({ timeout: 10000 });
+    await wait(800);
+  } catch (e) {
+    errors.push(`[${vpName}] close-up photo check failed: ${e.message.split("\n")[0]}`);
+  }
+
   // Language switch
   if (viewport.width < 640) await page.getByRole("button", { name: "मेनू" }).click().catch(() => errors.push(`[${vpName}] no menu button`));
   await page.getByRole("button", { name: "English" }).first().click().catch(() => errors.push(`[${vpName}] no English button`));

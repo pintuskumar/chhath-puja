@@ -13,6 +13,7 @@ import { objectsById } from "@/content/objects";
 import { NoteList, SourceLinks } from "../NoteBadge";
 import { ObjectIllustration } from "../illustrations/ObjectIllustration";
 import type { Scene } from "@/content/types";
+import { PhotoFigures } from "./ScenePhotos";
 
 export function ObjectChips({ ids }: { ids: string[] }) {
   const { lang } = useT();
@@ -117,6 +118,7 @@ export function DayScene({
             <NoteList notes={scene.regionalNotes} />
           </section>
         )}
+        <PhotoFigures sceneId={scene.id} heading={Q} />
         <section>
           <Q className="q-label">{t("sceneDescription")}</Q>
           <p className="text-sm leading-relaxed text-night/75">{t(scene.visualDescription)}</p>

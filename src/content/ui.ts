@@ -134,6 +134,10 @@ export const ui = {
   },
   sceneDescription: { hi: "दृश्य विवरण", en: "Scene description" },
   hotspotsHidden: { hi: "दृश्य बिंदु", en: "Hotspots" },
+  realPhoto: { hi: "असली तस्वीर", en: "Real photograph" },
+  photo: { hi: "फ़ोटो", en: "Photo" },
+  familyPhoto: { hi: "पारिवारिक संग्रह", en: "family collection" },
+  photosOfMoment: { hi: "इस पल की असली तस्वीरें", en: "Real photographs of this moment" },
 } as const;
 
 export type UiKey = keyof typeof ui;

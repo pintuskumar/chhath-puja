@@ -100,3 +100,18 @@ Procedural, defined in `src/three/choreography.ts` (positions/paths) and `src/th
 | `src/app/fonts/TiroDevanagariHindi-Regular.woff2` | Decorative headings | WOFF2, same subset | 127 KB, not preloaded | ✅ same workflow · **SIL OFL 1.1** (`OFL-TiroDevanagariHindi.txt`) |
 
 The build no longer contacts Google Fonts, so a fonts outage can't fail CI or Vercel.
+
+## Photographs (scene close-ups)
+
+Shown in the stage's close-up view and in each scene card (`src/content/photos.ts`). They were fetched and resized to 1280 px WebP by `.github/workflows/photos.yml`. Credit and licence are shown under every photo, linking to the Commons file page.
+
+| File | Scene | Author | Licence | Source |
+|---|---|---|---|---|
+| `public/photos/thekua-kolkata.webp` | soop-ki-taiyari | Biswarup Ganguly | CC BY 3.0 | [Commons](https://commons.wikimedia.org/wiki/File:Thekua_-_Chhath_Festival_-_Kolkata_2013-11-09_4316.JPG) |
+| `public/photos/soop-on-ghat-steps.webp` | ghat-par-taiyari | Goutam1962 | CC BY-SA 4.0 | [Commons](https://commons.wikimedia.org/wiki/File:Sacred_Offerings_to_the_Setting_Sun.jpg) |
+| `public/photos/vratis-in-yamuna.webp` | jal-me-vrati | Manishjaisi | CC BY-SA 4.0 | [Commons](https://commons.wikimedia.org/wiki/File:Celebrating_Chhath_Puja.jpg) |
+| `public/photos/arghya-soop-yamuna.webp` | sandhya-arghya | Goutam1962 | CC BY-SA 4.0 | [Commons](https://commons.wikimedia.org/wiki/File:Women_Offering_Arghya_at_Yamuna.jpg) |
+| `public/photos/sandhya-bagmati.webp` | sandhya-arghya | Skandagautam | CC BY-SA 4.0 | [Commons](https://commons.wikimedia.org/wiki/File:Chhath_Festival_in_Nepal.jpg) |
+| `public/photos/usha-misty-pond.webp` | usha-arghya | Sntshkumar750 | CC BY-SA 4.0 | [Commons](https://commons.wikimedia.org/wiki/File:Chhath_Puja_(Morning).jpg) |
+
+The photos are resized but otherwise unmodified. Under CC BY-SA, a modified version would have to be shared under the same licence. Family photos go in `public/photos/family/` with `license: "family"`.

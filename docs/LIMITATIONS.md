@@ -7,7 +7,7 @@ Honest status of what is and isn't finished.
 - **Characters are rigged MakeHuman/MPFB models (CC0)** generated in CI. They are realistic in proportion, with hands, faces and cloth-simulated garments, but **not photoreal**: faces are generic, skin is tinted from a non-South-Asian preset, and the garments are generated rather than tailored. See [VISUAL_AUDIT.md §8](VISUAL_AUDIT.md).
 - **Animation clips are keyframed, not motion-captured.** Ritual postures are simple static holds. Feet are planted on the ghat steps by a runtime 2-bone foot IK, and cotton darkens/glosses below the waterline (then dries slowly), but there is no finger-level grip on props: the soop is held in a socket between both palms.
 - **Water reflections are stylised** (sky + sun glitter + lamp shimmer + ripples). Devotees and diyas are not mirrored in the water.
-- **No photography.** `imagePath` is optional in the data model and currently unused; object views are SVG illustrations or procedural 3D.
+- **Photography is limited to scene close-ups.** Six freely licensed Wikimedia Commons photos (CC BY / CC BY-SA, credited under each photo) appear in the stage's close-up view and in the scene cards for five scenes: soop preparation, at the ghat, vratis in the water, sandhya arghya, usha arghya. They show other families at other ghats, not a single real family. Family photos can be added in `src/content/photos.ts`. Ritual-object views are still SVG illustrations or procedural 3D (`imagePath` is unused).
 - **No Open Graph image** (social previews show title/description only).
 - Madhubani motifs are original, simplified drawings *inspired by* Mithila art, not commissioned work by a Mithila artist.
 

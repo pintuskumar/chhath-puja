@@ -13,6 +13,7 @@ import { SceneIllustration } from "../illustrations/SceneIllustration";
 import { TimeOfDayController, useStageHour } from "./TimeOfDayController";
 import { HotspotLayer } from "./HotspotLayer";
 import type { Day } from "@/content/types";
+import { PhotoCloseup, photosFor } from "./ScenePhotos";
 
 const ExperienceCanvas = dynamic(() => import("../ExperienceCanvas"), { ssr: false });
 
@@ -38,7 +39,10 @@ export function DayStage({ day, free }: { day: Day; free: boolean }) {
   const reduced = useReducedMotion();
   const { t } = useT();
   const active = useExperience((s) => s.activeScene);
+  const view = useExperience((s) => s.view);
   const scene = day.scenes[Math.min(active, day.scenes.length - 1)];
+  // close-ups of people: a real photograph of the moment; the 3D scene keeps the wide shots
+  const showPhoto = view === "closeup" && photosFor(scene.id).length > 0;
   return (
     <div className="absolute inset-0 overflow-hidden bg-night">
       {can3d ? (
@@ -53,7 +57,7 @@ export function DayStage({ day, free }: { day: Day; free: boolean }) {
           fallback={<ReducedMotionFallback day={day} showLabel={false} />}
         />
       ) : null}
-      {can3d && <HotspotLayer key={scene.id} ids={scene.objects} />}
+      {showPhoto ? <PhotoCloseup sceneId={scene.id} /> : can3d && <HotspotLayer key={scene.id} ids={scene.objects} />}
       {!can3d && (
         <div role="group" aria-label={`${t(day.title)} — ${t(scene.title)}. ${t(scene.visualDescription)}`} className="absolute inset-0">
           <ReducedMotionFallback day={day} showLabel />
@@ -72,7 +76,7 @@ export function StageControls({ day, onPrev, onNext }: { day: Day; onPrev: () =>
   const view = useExperience((s) => s.view);
   const setView = useExperience((s) => s.setView);
   const scene = day.scenes[Math.min(active, day.scenes.length - 1)];
-  const hasClose = !!scene.stage.closeCamera;
+  const hasClose = !!scene.stage.closeCamera || photosFor(scene.id).length > 0;
   return (
     <div className="pointer-events-auto flex w-full flex-wrap items-center gap-2" role="toolbar" aria-label={t("settings")}>
       <div className="flex items-center gap-1 rounded-full bg-night/70 p-1 text-cream">
