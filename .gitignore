@@ -6,3 +6,4 @@ out
 .env*.local
 lhci-reports
 .lighthouseci
+.vercel

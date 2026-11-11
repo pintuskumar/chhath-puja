@@ -92,7 +92,8 @@ jobs:
   deploy:
     name: Deploy preview to GitHub Pages
     needs: build
-    if: github.event_name != 'pull_request'
+    # Hosting is on Vercel. Set the repo variable DEPLOY_PAGES=true to also publish to GitHub Pages.
+    if: github.event_name != 'pull_request' && vars.DEPLOY_PAGES == 'true'
     runs-on: ubuntu-latest
     permissions:
       pages: write

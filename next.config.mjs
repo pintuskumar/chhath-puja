@@ -6,6 +6,13 @@
  */
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
+// Absolute site URL for canonical links, sitemap and robots.
+// Explicit NEXT_PUBLIC_SITE_URL wins; on Vercel fall back to the production domain.
+const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (vercelUrl ? `https://${vercelUrl}` : "https://pintuskumar.github.io/chhath-puja");
+
 const nextConfig = {
   output: "export",
   basePath,
@@ -14,6 +21,7 @@ const nextConfig = {
   poweredByHeader: false,
   images: { unoptimized: true },
   transpilePackages: ["three"],
+  env: { NEXT_PUBLIC_SITE_URL: siteUrl },
 };
 
 export default nextConfig;

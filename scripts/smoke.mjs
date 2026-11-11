@@ -16,6 +16,12 @@ const prefs = (renderer, extra = {}) =>
     version: 1,
   });
 
+// Apply the production security headers from vercel.json so CSP problems show up here.
+const vercel = JSON.parse(fs.readFileSync("vercel.json", "utf8"));
+const securityHeaders = Object.fromEntries(
+  vercel.headers.find((h) => h.source === "/(.*)").headers.map((h) => [h.key.toLowerCase(), h.value]),
+);
+
 const errors = [];
 const browser = await chromium.launch({
   args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
@@ -24,10 +30,16 @@ const browser = await chromium.launch({
 async function session(name, viewport, renderer, extra) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1, hasTouch: viewport.width < 600 });
   await ctx.addInitScript((v) => localStorage.setItem("chhath-mahaparv-prefs", v), prefs(renderer, extra));
+  await ctx.route("**/*", async (route) => {
+    if (route.request().resourceType() !== "document") return route.continue();
+    const res = await route.fetch();
+    await route.fulfill({ response: res, headers: { ...res.headers(), ...securityHeaders } });
+  });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(`[${name}] pageerror ${page.url()}: ${e.message}\n      ${(e.stack ?? "").split("\n").slice(1, 16).join("\n      ")}`));
   page.on("console", (m) => {
-    if (m.type() === "error") errors.push(`[${name}] console.error ${page.url()}: ${m.text().slice(0, 300)}`);
+    if (m.type() === "error" && /Content Security Policy|Refused to/i.test(m.text())) errors.push(`[${name}] CSP ${page.url()}: ${m.text().slice(0, 300)}`);
+    else if (m.type() === "error") errors.push(`[${name}] console.error ${page.url()}: ${m.text().slice(0, 300)}`);
   });
   return { ctx, page };
 }
@@ -121,4 +133,4 @@ await twoD.ctx.close();
 await browser.close();
 const unique = [...new Set(errors)];
 console.log(unique.length ? `\nERRORS (${unique.length}):\n${unique.join("\n")}` : "\nSMOKE OK — no runtime errors");
-process.exit(unique.some((e) => e.includes("pageerror") || e.includes("no WebGL") || e.includes("did not")) ? 1 : 0);
+process.exit(unique.some((e) => e.includes("pageerror") || e.includes("CSP") || e.includes("no WebGL") || e.includes("did not")) ? 1 : 0);

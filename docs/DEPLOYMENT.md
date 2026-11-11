@@ -2,9 +2,9 @@
 
 The site is a **static export** (`next build` → `./out`). Any static host works; there is no server runtime.
 
-## GitHub Pages (preconfigured)
+## GitHub Pages (optional)
 
-`.github/workflows/ci.yml` builds a sub-path version (`NEXT_PUBLIC_BASE_PATH=/<repo>`) and deploys it with `actions/deploy-pages`.
+The Pages deploy job only runs when the repository variable `DEPLOY_PAGES` is `true` (Settings → Secrets and variables → Actions → Variables). `.github/workflows/ci.yml` builds a sub-path version (`NEXT_PUBLIC_BASE_PATH=/<repo>`) and deploys it with `actions/deploy-pages`.
 
 One-time setup (repository admin):
 
@@ -12,7 +12,21 @@ One-time setup (repository admin):
 2. **Settings → Environments → `github-pages` → Deployment branches**: allow the branch you deploy from (by default only the default branch can deploy).
 3. Re-run the **CI** workflow (or push). The site appears at `https://<owner>.github.io/<repo>/`.
 
-## Vercel / Netlify / Cloudflare Pages
+## Vercel (primary)
+
+`vercel.json` is included. Steps:
+
+1. vercel.com → **Add New… → Project** → import `pintuskumar/chhath-puja`.
+2. Leave the detected settings as they are (`vercel.json` sets framework, install/build commands and the `out` directory). **Root Directory:** the repo root.
+3. **Deploy.** Every push to any branch gets a preview URL; the production branch gets the production domain.
+
+Notes:
+* `NEXT_PUBLIC_SITE_URL` is optional. If it isn't set, the build uses Vercel's production domain (`VERCEL_PROJECT_PRODUCTION_URL`) for canonical URLs, sitemap and robots. Set it once you add a custom domain.
+* Do **not** set `NEXT_PUBLIC_BASE_PATH` on Vercel.
+* The build runs `check:content` first, so a missing translation fails the deploy.
+* `vercel.json` adds long-term caching for `/_next/static/*` and security headers (CSP, nosniff, referrer policy, frame options).
+
+## Netlify / Cloudflare Pages
 
 * Build command: `npm run build`
 * Output directory: `out`
