@@ -15,6 +15,7 @@ import { useExperience } from "@/lib/store";
 export function ScrollStoryController({ container, reduced }: { container: RefObject<HTMLElement | null>; reduced: boolean }) {
   const setActive = useExperience((s) => s.setActiveScene);
   const setDayScroll = useExperience((s) => s.setDayScroll);
+  const setSceneScroll = useExperience((s) => s.setSceneScroll);
 
   useLayoutEffect(() => {
     const root = container.current;
@@ -29,6 +30,9 @@ export function ScrollStoryController({ container, reduced }: { container: RefOb
           start: "top 60%",
           end: "bottom 60%",
           onToggle: (self) => self.isActive && setActive(i),
+          onUpdate: (self) => {
+            if (self.isActive) setSceneScroll(Math.round(self.progress * 100) / 100);
+          },
         });
         const card = el.querySelector("[data-reveal]");
         if (card && !reduced) {
@@ -85,7 +89,7 @@ export function ScrollStoryController({ container, reduced }: { container: RefOb
       window.removeEventListener("load", refresh);
       ctx.revert();
     };
-  }, [container, reduced, setActive, setDayScroll]);
+  }, [container, reduced, setActive, setDayScroll, setSceneScroll]);
 
   return null;
 }

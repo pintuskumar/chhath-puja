@@ -89,6 +89,8 @@ interface ExperienceSlice {
   timeOverride: number | null;
   /** 0..1 scroll progress across the whole day page (Day 4 sunrise is scroll-driven). */
   dayScroll: number;
+  /** 0..1 progress through the active scene's scroll section. */
+  sceneScroll: number;
   /** Manual scrub of the current scene's ritual animation 0..1 (null = auto play). */
   scrub: number | null;
   view: CameraView;
@@ -101,6 +103,7 @@ interface ExperienceSlice {
   closePanel: () => void;
   setTimeOverride: (t: number | null) => void;
   setDayScroll: (p: number) => void;
+  setSceneScroll: (p: number) => void;
   setScrub: (p: number | null) => void;
   setView: (v: CameraView) => void;
   replay: () => void;
@@ -114,6 +117,7 @@ export const useExperience = create<ExperienceSlice>()((set) => ({
   panelObjectId: null,
   timeOverride: null,
   dayScroll: 0,
+  sceneScroll: 0,
   scrub: null,
   view: "overview",
   replayToken: 0,
@@ -141,6 +145,7 @@ export const useExperience = create<ExperienceSlice>()((set) => ({
   closePanel: () => set({ panelObjectId: null }),
   setTimeOverride: (timeOverride) => set({ timeOverride }),
   setDayScroll: (dayScroll) => set({ dayScroll }),
+  setSceneScroll: (sceneScroll) => set({ sceneScroll }),
   setScrub: (scrub) => set({ scrub }),
   setView: (view) => set({ view }),
   replay: () => set((s) => ({ replayToken: s.replayToken + 1, sceneState: "entry", scrub: null, userPaused: false })),

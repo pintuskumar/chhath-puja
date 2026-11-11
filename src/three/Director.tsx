@@ -13,6 +13,7 @@ import { createContext, useContext, useEffect, useRef, type ReactNode, type RefO
 import { useFrame } from "@react-three/fiber";
 import { useExperience, isScenePaused } from "@/lib/store";
 import { choreograph, type Actors } from "./choreography";
+import { scrollHour } from "@/lib/scrollHour";
 import type { SceneStage, TimeControl } from "@/content/types";
 
 export interface DirectorSnapshot {
@@ -27,6 +28,8 @@ export interface DirectorSnapshot {
   free: boolean;
   /** seconds since the stage last changed (camera transitions). */
   sinceChange: number;
+  /** Homepage hero (centred composition, no text-card offset). */
+  hero: boolean;
 }
 
 const Ctx = createContext<RefObject<DirectorSnapshot> | null>(null);
@@ -62,6 +65,7 @@ export function Director({ stages, timeControl, reduced, free = false, intro, fi
     view: "overview",
     free,
     sinceChange: 99,
+    hero: fixedIndex !== undefined,
   });
   const lastIndex = useRef(-1);
   const lastReplay = useRef(-1);
@@ -105,7 +109,7 @@ export function Director({ stages, timeControl, reduced, free = false, intro, fi
     let target = stage.timeOfDay;
     if (fixedIndex === undefined) {
       if (ex.timeOverride !== null) target = ex.timeOverride;
-      else if (timeControl?.kind === "scroll") target = timeControl.min + (timeControl.max - timeControl.min) * ex.dayScroll;
+      else if (timeControl?.kind === "scroll") target = scrollHour(stages, index, ex.sceneScroll, timeControl);
     }
     if (intro && introT.current < intro.seconds) {
       introT.current += delta;

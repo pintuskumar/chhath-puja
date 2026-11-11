@@ -75,7 +75,7 @@ for (const [vpName, viewport] of [
   await wait(5000);
   const hotspot = page.locator('button[aria-haspopup="dialog"][aria-label*="सूप"]').first();
   if (await hotspot.count()) {
-    await hotspot.click({ force: true });
+    await hotspot.evaluate((el) => el.click());
     await wait(3500);
     const dialog = await page.locator('[role="dialog"]').count();
     if (!dialog) errors.push(`[${vpName}] hotspot did not open dialog`);

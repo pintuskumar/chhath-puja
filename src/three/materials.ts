@@ -17,8 +17,9 @@ export const mat = {
   clay: () => std("clay", { color: "#a65a34", roughness: 0.95 }),
   clayLight: () => std("clayLight", { color: "#c98a5b", roughness: 0.95 }),
   plaster: () => std("plaster", { color: "#d6b58a", roughness: 1 }),
-  brass: () => std("brass", { color: "#d4a640", metalness: 0.85, roughness: 0.32 }),
-  copper: () => std("copper", { color: "#c0703f", metalness: 0.8, roughness: 0.35 }),
+  // Low metalness: there is no environment map, so fully metallic surfaces would render black.
+  brass: () => std("brass", { color: "#d9a93f", metalness: 0.35, roughness: 0.38, emissive: "#3a2400", emissiveIntensity: 0.25 }),
+  copper: () => std("copper", { color: "#c4743f", metalness: 0.35, roughness: 0.4, emissive: "#2a1000", emissiveIntensity: 0.25 }),
   bamboo: () => std("bamboo", { map: weaveTexture(), roughness: 0.85 }),
   bambooSolid: () => std("bambooSolid", { color: "#c99a52", roughness: 0.8 }),
   thekua: () => std("thekua", { map: thekuaTexture(), roughness: 0.7 }),

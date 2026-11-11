@@ -4,15 +4,16 @@ import { Sun, Sunrise, Sunset, Moon } from "lucide-react";
 import { useExperience } from "@/lib/store";
 import { useT, formatHour } from "@/lib/i18n";
 import { SUNRISE, SUNSET } from "@/lib/sky";
+import { scrollHour } from "@/lib/scrollHour";
 import type { Day } from "@/content/types";
 
 export function useStageHour(day: Day) {
   const active = useExperience((s) => s.activeScene);
   const override = useExperience((s) => s.timeOverride);
-  const scroll = useExperience((s) => s.dayScroll);
+  const sceneScroll = useExperience((s) => s.sceneScroll);
   const tc = day.timeControl;
   if (override !== null) return override;
-  if (tc?.kind === "scroll") return tc.min + (tc.max - tc.min) * scroll;
+  if (tc?.kind === "scroll") return scrollHour(day.scenes.map((s) => s.stage), active, sceneScroll, tc);
   return day.scenes[Math.min(active, day.scenes.length - 1)].stage.timeOfDay;
 }
 

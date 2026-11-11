@@ -16,10 +16,10 @@ export const CAMERAS: Record<CameraPreset, { pos: V3; target: V3 }> = {
   "courtyard-shrine": { pos: [2.4, 2.0, -0.6], target: [0.3, 0.6, -4.3] },
   "courtyard-night": { pos: [5.5, 3.6, 6.5], target: [-0.5, 0.6, -2] },
   "ghat-hero": { pos: [0, 2.6, 10.5], target: [0, 1.0, -12] },
-  "ghat-path": { pos: [-3.5, 3.0, 12.5], target: [-4, 1.4, 5.5] },
+  "ghat-path": { pos: [0.5, 2.8, 13.5], target: [0, 1.2, 5.5] },
   "ghat-steps": { pos: [3.6, 3.4, 8.2], target: [0, 0.8, 2.2] },
   "ghat-water": { pos: [3.2, 2.0, 3.6], target: [-0.3, 0.2, -3] },
-  "ghat-closeup": { pos: [1.9, 1.15, -0.5], target: [-0.6, 0.85, -4.2] },
+  "ghat-closeup": { pos: [-1.6, 1.35, 1.1], target: [0.8, 0.55, -5.5] },
   "ghat-wide": { pos: [-7, 5.5, 13], target: [0, 0.5, -8] },
 };
 
@@ -31,6 +31,7 @@ export function CameraRig({ free = false }: { free?: boolean }) {
   const goalPos = useMemo(() => new THREE.Vector3(), []);
   const goalTarget = useMemo(() => new THREE.Vector3(), []);
   const inited = useRef(false);
+  const offsetKey = useRef("");
 
   useFrame((_, delta) => {
     const snap = d.current;
@@ -46,6 +47,29 @@ export function CameraRig({ free = false }: { free?: boolean }) {
     }
     goalPos.set(...c.pos);
     goalTarget.set(...c.target);
+    // Evening sun sets on the right (+x), morning sun rises on the left: mirror the
+    // close-up so the vrati is framed against the sun in both arghyas.
+    if (preset === "ghat-closeup" && snap.hour < 12) {
+      goalPos.x *= -1;
+      goalTarget.x *= -1;
+    }
+    // Procession: track the walking family along the top of the ghat.
+    if (preset === "ghat-path") {
+      const walkers = Object.values(snap.actors).filter((a) => a.pos[1] > 1);
+      if (walkers.length) {
+        const x = walkers.reduce((acc, a) => acc + a.pos[0], 0) / walkers.length;
+        goalPos.x += x + 4;
+        goalTarget.x += x + 4;
+      }
+    }
+    // Guided desktop layout puts the text card on the left: shift the image right.
+    const wantOffset = !free && size.width >= 768 && !snap.hero;
+    const key = `${wantOffset}-${size.width}-${size.height}`;
+    if (key !== offsetKey.current) {
+      offsetKey.current = key;
+      if (wantOffset) cam.setViewOffset(size.width, size.height, -size.width * 0.18, 0, size.width, size.height);
+      else cam.clearViewOffset();
+    }
     if (portrait) goalPos.sub(goalTarget).multiplyScalar(1.12).add(goalTarget);
     if (!snap.reduced && !snap.free) {
       // gentle cinematic drift
