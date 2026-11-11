@@ -140,7 +140,7 @@ jobs:
           json.dump({"version": 1, "clips": clips, "walkSpeed": 1.1, "characters": chars}, open("web/manifest.json", "w"), indent=2)
           PY
           MODELS_ROOT=web node scripts/check-models.mjs || true
-          cp web/characters/*.glb "$CHAR_OUT"/ 2>/dev/null; for f in $(ls web/characters/*.glb 2>/dev/null); do mv "$CHAR_OUT/$(basename $f)" "$CHAR_OUT/$(basename $f .glb).web.glb"; done
+          cp web/characters/*.glb "$CHAR_OUT"/ 2>/dev/null || true; for f in $(ls web/characters/*.glb 2>/dev/null); do mv "$CHAR_OUT/$(basename $f)" "$CHAR_OUT/$(basename $f .glb).web.glb"; done
 
       - uses: actions/upload-artifact@v4
         if: always()

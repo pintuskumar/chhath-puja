@@ -127,6 +127,10 @@ def two_bone(upper, lower, target, pole):
     E = S0 + u * (a * cosA) + p * (a * sinA)
     aim(upper, E - S0)
     aim(lower, (S0 + u * d) - wpos(lower))
+    IK_ERR[lower] = max(IK_ERR.get(lower, 0.0), (wpos(lower, tail=True) - T).length)
+
+
+IK_ERR = {}
 
 
 FINGERS = ["Index", "Middle", "Ring", "Pinky"]
@@ -308,8 +312,10 @@ def c_walk_down(t):
 
 
 def carry_arms():
-    top = wpos("Head", tail=True)
-    hands_to(top + Vector((0.17, 0.0, 0.07)), top + Vector((-0.17, 0.0, 0.07)), Vector((1, 0.4, -0.3)), Vector((-1, 0.4, -0.3)))
+    # palms steady the daura on the head: hands beside the crown, elbows out
+    hd = wpos("Head")
+    top = Vector((hd.x, hd.y, hd.z + 0.24))
+    hands_to(top + Vector((0.19, -0.02, 0.0)), top + Vector((-0.19, -0.02, 0.0)), Vector((1, 0.2, -0.4)), Vector((-1, 0.2, -0.4)))
     for sd in ("Left", "Right"):
         s = side_sign(sd)
         orient_hand(sd, Vector((-s * 0.6, 0, 1)), Vector((0, -1, 0)))
@@ -536,7 +542,9 @@ for name, secs, fn in CLIPS:
     tr.name = name
     tr.strips.new(name, 1, act)
     actions.append((name, secs, act))
-    log(f"clip {name}: {secs}s, {n_keys + 1} keys")
+    errs = {k.replace("ForeArm", ""): round(v * 100, 1) for k, v in IK_ERR.items()}
+    log(f"clip {name}: {secs}s, {n_keys + 1} keys, IK reach error cm {errs}")
+    IK_ERR.clear()
 rig.animation_data.action = None
 
 # ── export (armature only) ──
@@ -558,7 +566,7 @@ scn.render.engine = "CYCLES"
 scn.cycles.device = "CPU"
 scn.cycles.samples = 12
 scn.cycles.use_denoising = True
-TW, TH = 240, 320
+TW, TH = 320, 440
 scn.render.resolution_x, scn.render.resolution_y = TW, TH
 world = bpy.data.worlds.new("w")
 world.use_nodes = True
@@ -569,10 +577,10 @@ sun.data.energy = 3.0
 sun.rotation_euler = (math.radians(55), 0, math.radians(-35))
 scn.collection.objects.link(sun)
 cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam"))
-cam.data.lens = 40
+cam.data.lens = 45
 scn.collection.objects.link(cam)
 scn.camera = cam
-loc, tgt = Vector((2.6, -3.6, 1.2)), Vector((0, 0, 0.8))
+loc, tgt = Vector((1.15, -2.35, 1.05)), Vector((0, 0, 0.82))
 cam.location = loc
 cam.rotation_euler = (tgt - loc).to_track_quat("-Z", "Y").to_euler()
 
