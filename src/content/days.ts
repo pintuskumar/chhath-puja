@@ -670,7 +670,7 @@ export const days: Day[] = [
         index: 4,
         title: { hi: "संध्या अर्घ्य", en: "The evening arghya" },
         caption: { hi: "सूप थामे व्रती, लोटे से जल-दूध की धार।", en: "The vrati holds the soop; water and milk flow from the lota." },
-        stage: { environment: "ghat", timeOfDay: 16.92, camera: "ghat-closeup", closeCamera: "ghat-closeup", animation: "arghya", duration: 14 },
+        stage: { environment: "ghat", timeOfDay: 16.75, camera: "ghat-closeup", closeCamera: "ghat-closeup", animation: "arghya", duration: 14 },
         what: {
           hi: "व्रती प्रसाद से भरा सूप दोनों हाथों में थामकर डूबते सूर्य की ओर करते हैं। परिवारजन और श्रद्धालु लोटे से सूप के आगे जल या दूध की धार अर्पित करते हैं।",
           en: "The vrati holds the prasad-filled soop in both hands towards the setting sun. Family members and devotees pour a stream of water or milk from a lota in front of it.",
@@ -841,7 +841,7 @@ export const days: Day[] = [
         index: 2,
         title: { hi: "उषा अर्घ्य", en: "The dawn arghya" },
         caption: { hi: "पहली किरण के साथ अर्घ्य।", en: "Arghya with the first ray." },
-        stage: { environment: "ghat", timeOfDay: 6.05, camera: "ghat-closeup", closeCamera: "ghat-closeup", animation: "usha-arghya", duration: 14 },
+        stage: { environment: "ghat", timeOfDay: 6.25, camera: "ghat-closeup", closeCamera: "ghat-closeup", animation: "usha-arghya", duration: 14 },
         what: {
           hi: "क्षितिज पर सूर्य दिखते ही व्रती सूप थामकर उगते सूर्य को अर्घ्य देते हैं; परिजन लोटे से जल या दूध अर्पित करते हैं।",
           en: "As the sun appears on the horizon, the vrati holds up the soop to the rising sun; family members offer water or milk from a lota.",

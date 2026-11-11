@@ -98,9 +98,10 @@ function FarBank({ quality }: { quality: Q }) {
     const r = rng(42);
     const o = new THREE.Object3D();
     for (let i = 0; i < count; i++) {
-      const s = 2 + r() * 4;
-      o.position.set(-200 + r() * 400, 1 + s * 0.4, -78 - r() * 10);
-      o.scale.set(s * 0.8, s, s * 0.8);
+      // low treeline (≈1–2° above the horizon) so the sun stays visible near sunrise/sunset
+      const s = 1.2 + r() * 1.6;
+      o.position.set(-200 + r() * 400, 0.6 + s * 0.3, -78 - r() * 10);
+      o.scale.set(s * 1.4, s * 0.8, s);
       o.updateMatrix();
       m.setMatrixAt(i, o.matrix);
     }
