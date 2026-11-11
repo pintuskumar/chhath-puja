@@ -1,0 +1,106 @@
+name: Fetch Commons photos
+
+# Survey (no input): list freely licensed photos in Chhath categories on Wikimedia Commons
+#   → artifact with 400 px previews + meta.json (title, licence, author, description, URL).
+# Fetch (input `titles`, "|"-separated File: titles): 1280 px WebP + meta.json for the site.
+# Only licences that allow reuse with attribution are kept (CC0, PD, CC BY, CC BY-SA).
+on:
+  workflow_dispatch:
+    inputs:
+      titles:
+        description: "File titles to fetch, separated by |"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  photos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests pillow
+      - name: Survey or fetch
+        env:
+          TITLES: ${{ github.event.inputs.titles }}
+        shell: python
+        run: |
+          import io, json, os, re, time, requests
+          from PIL import Image
+          API = "https://commons.wikimedia.org/w/api.php"
+          H = {"User-Agent": "chhath-mahaparv-site/1.0 (https://github.com/pintuskumar/chhath-puja)"}
+          OK = re.compile(r"^(cc0|public domain|pd|cc by(-sa)? [0-9.]+|cc-by(-sa)?-[0-9.]+)", re.I)
+          os.makedirs("out", exist_ok=True)
+
+          def get(**p):
+              p.update(format="json", formatversion=2)
+              for i in range(5):
+                  try:
+                      r = requests.get(API, params=p, headers=H, timeout=30)
+                      r.raise_for_status()
+                      return r.json()
+                  except Exception as e:
+                      print("retry", e); time.sleep(5)
+              raise SystemExit("api failed")
+
+          def info(titles, width):
+              res = []
+              for i in range(0, len(titles), 40):
+                  d = get(action="query", titles="|".join(titles[i:i+40]), prop="imageinfo",
+                          iiprop="url|size|mime|extmetadata", iiurlwidth=width,
+                          iiextmetadatafilter="LicenseShortName|LicenseUrl|Artist|ImageDescription|Credit|DateTimeOriginal")
+                  for pg in d["query"]["pages"]:
+                      ii = (pg.get("imageinfo") or [None])[0]
+                      if not ii or not ii.get("mime", "").startswith("image/jpeg"):
+                          continue
+                      m = {k: re.sub("<[^>]+>", "", v.get("value", "")).strip() for k, v in ii.get("extmetadata", {}).items()}
+                      lic = m.get("LicenseShortName", "")
+                      if not OK.match(lic):
+                          print("skip licence", pg["title"], lic); continue
+                      res.append(dict(title=pg["title"], page=ii["descriptionurl"], thumb=ii["thumburl"],
+                                      w=ii["width"], h=ii["height"], license=lic, licenseUrl=m.get("LicenseUrl", ""),
+                                      artist=m.get("Artist", ""), description=m.get("ImageDescription", "")[:400],
+                                      date=m.get("DateTimeOriginal", "")))
+              return res
+
+          titles = [t.strip() for t in os.environ.get("TITLES", "").split("|") if t.strip()]
+          if titles:
+              items, width = info(titles, 1280), 1280
+          else:
+              cats = ["Category:Chhath Puja", "Category:Chhath Puja in Bihar", "Category:Chhath Puja in Patna",
+                      "Category:Chhath Puja in Nepal", "Category:Chhath Puja in Delhi", "Category:Chhath Puja in Kolkata",
+                      "Category:Chhath Puja in Mumbai", "Category:Chhath Puja in Jharkhand", "Category:Chhath Puja in Uttar Pradesh",
+                      "Category:Chhath Puja 2023", "Category:Chhath Puja 2022", "Category:Chhath Puja 2021", "Category:Chhath Puja 2019"]
+              seen = []
+              for c in cats:
+                  cont = {}
+                  while True:
+                      d = get(action="query", list="categorymembers", cmtitle=c, cmtype="file", cmlimit=200, **cont)
+                      seen += [m["title"] for m in d.get("query", {}).get("categorymembers", [])]
+                      if "continue" not in d: break
+                      cont = d["continue"]
+                  print(c, len(seen))
+              seen = list(dict.fromkeys(seen))
+              items, width = info(seen, 400), 400
+              items = [x for x in items if x["w"] >= 1200]  # need enough resolution for a close-up
+          print("kept", len(items))
+          for n, x in enumerate(items):
+              slug = f"{n:03d}"
+              try:
+                  r = requests.get(x["thumb"], headers=H, timeout=60); r.raise_for_status()
+                  im = Image.open(io.BytesIO(r.content)).convert("RGB")
+                  im.thumbnail((width, width))
+                  im.save(f"out/{slug}.webp", "WEBP", quality=82 if width > 400 else 70, method=6)
+                  x["file"] = f"{slug}.webp"
+              except Exception as e:
+                  print("download failed", x["title"], e)
+              time.sleep(0.3)
+          json.dump(items, open("out/meta.json", "w"), indent=1, ensure_ascii=False)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: photos
+          path: out/
