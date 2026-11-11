@@ -45,6 +45,64 @@ function findBone(root: THREE.Object3D, names: string[]) {
   return null;
 }
 
+interface Rest {
+  q: THREE.Quaternion;
+  p: THREE.Vector3;
+}
+const restOf = (o: THREE.Object3D): Rest => ({ q: o.quaternion.clone(), p: o.position.clone() });
+
+/**
+ * Retarget a clip authored on one MPFB skeleton onto another (different body proportions):
+ *  - rotations become deltas from the source rest pose, re-applied on the target rest pose
+ *  - only the hips may translate (bob, sitting), scaled by the ratio of hip heights
+ *  - every other translation/scale track is dropped, so bone lengths stay the model's own
+ */
+function retarget(clip: THREE.AnimationClip, src: Map<string, Rest>, dst: Map<string, Rest>) {
+  const c = clip.clone();
+  const qa = new THREE.Quaternion();
+  const qb = new THREE.Quaternion();
+  const corr = new THREE.Quaternion();
+  c.tracks = c.tracks.flatMap((t) => {
+    const { nodeName, propertyName } = THREE.PropertyBinding.parseTrackName(t.name);
+    const s = src.get(nodeName);
+    const d = dst.get(nodeName);
+    if (propertyName === "quaternion") {
+      if (!s || !d) return [t];
+      // q' = d · s⁻¹ · q
+      corr.copy(d.q).multiply(qa.copy(s.q).invert());
+      const v = t.values.slice();
+      for (let i = 0; i < v.length; i += 4) {
+        qb.fromArray(v, i).premultiply(corr).normalize().toArray(v, i);
+      }
+      const nt = t.clone();
+      nt.values = v;
+      return [nt];
+    }
+    if (propertyName === "position" && /hips$/i.test(nodeName) && s && d) {
+      const k = s.p.length() > 1e-6 ? d.p.length() / s.p.length() : 1;
+      const v = t.values.slice();
+      for (let i = 0; i < v.length; i += 3) {
+        v[i] = d.p.x + (v[i] - s.p.x) * k;
+        v[i + 1] = d.p.y + (v[i + 1] - s.p.y) * k;
+        v[i + 2] = d.p.z + (v[i + 2] - s.p.z) * k;
+      }
+      const nt = t.clone();
+      nt.values = v;
+      return [nt];
+    }
+    return [];
+  });
+  return c;
+}
+
+function restMap(root: THREE.Object3D) {
+  const m = new Map<string, Rest>();
+  root.traverse((o) => {
+    if (o.name && !m.has(o.name)) m.set(o.name, (o.userData.rest as Rest | undefined) ?? restOf(o));
+  });
+  return m;
+}
+
 function HeldProp({ hold }: { hold: Exclude<HoldId, "none"> }) {
   switch (hold) {
     case "soop":
@@ -119,6 +177,7 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality }: Props) 
   const { model, scale, lift } = useMemo(() => {
     const m = cloneSkinned(gltf.scene) as THREE.Object3D;
     m.traverse((o) => {
+      o.userData.rest = restOf(o); // captured before any clip plays (used for retargeting)
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
       mesh.castShadow = shadows;
@@ -135,14 +194,21 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality }: Props) 
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model]);
   const actions = useMemo(() => {
     const map = new Map<string, THREE.AnimationAction>();
-    for (const clip of [...clipsGltf.animations, ...gltf.animations]) {
-      const c = clip.clone();
-      // Clips must be in-place: drop horizontal root motion if present (choreography moves the actor).
-      c.tracks = c.tracks.filter((t) => !/^(root|Root|Armature)\.position$/.test(t.name));
-      map.set(normalizeClipName(c.name), mixer.clipAction(c));
+    const dst = restMap(model);
+    const shared = restMap(clipsGltf.scene);
+    const own = restMap(gltf.scene);
+    for (const [clips, src] of [
+      [clipsGltf.animations, shared],
+      [gltf.animations, own],
+    ] as const) {
+      for (const clip of clips) {
+        // In place: the choreography moves the actor; only the hips bob/sit.
+        const c = retarget(clip, src, dst);
+        map.set(normalizeClipName(c.name), mixer.clipAction(c));
+      }
     }
     return map;
-  }, [mixer, clipsGltf.animations, gltf.animations]);
+  }, [mixer, model, clipsGltf.animations, clipsGltf.scene, gltf.animations, gltf.scene]);
   useEffect(() => {
     // Mount counter for the browser smoke test (verifies rigged characters actually render).
     const w = window as Window & { __riggedCharacters?: number };
