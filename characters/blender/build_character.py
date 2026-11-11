@@ -639,7 +639,7 @@ elif kind in ("dhoti_kurta", "kurta_pyjama"):
             ], 0.15, 0.022, g, g, samples=48, across=6))
     else:
         py = cloth_mat("pyjama", C.get("pyjama", (0.94, 0.92, 0.85)))
-        garments.append(body_shell("pyjama", ["Hand", "Arm", "Spine1", "Spine2", "Neck", "Head", "Foot", "Toe"], foot_z + 0.07, hips_z + 0.04, 0.02, py, exclude=True))
+        garments.append(body_shell("pyjama", ["Hand", "Arm", "Spine1", "Spine2", "Neck", "Head", "Foot", "Toe"], foot_z + 0.07, hips_z - 0.03, 0.02, py, exclude=True))  # top hidden under the kurta hem
 
 log("garments", [(g.name, len(g.data.polygons)) for g in garments])
 

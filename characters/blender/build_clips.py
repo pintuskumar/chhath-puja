@@ -456,12 +456,22 @@ def c_stir(t):
     curl("Right", 50)
 
 
+def dbg(tag):
+    log("  dbg", tag, {n: tuple(round(c, 2) for c in wpos(n)) for n in ("Hips", "Spine", "Spine2", "RightArm")})
+
+
 def c_sweep(t):
+    d = dbg if t == 0 else (lambda tag: None)
+    d("rest")
     shift("Hips", (0, 0.03, 0))
+    d("shift")
     legs_stand(spread=0.06, knee=30)
+    d("legs")
     sw = math.sin(2 * math.pi * t)
     spine(fwd=50, twist=-6 * sw)
+    d("spine")
     head(pitch_deg=-12)
+    d("head")
     hip = wpos("Hips")
     two_bone("RightArm", "RightForeArm", front_of(Vector((hip.x, hip.y, FOOT_Z)), 0.38, 0.42, -0.05 + 0.22 * sw), Vector((-1, 0.4, -0.3)))
     orient_hand("Right", Vector((0.15 * sw, -0.3, -1)), FWD)
