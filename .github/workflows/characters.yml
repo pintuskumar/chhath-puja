@@ -1,58 +1,73 @@
 name: Generate characters (MakeHuman / MPFB)
 
 # Builds CC0 MakeHuman characters headlessly in Blender + MPFB, exports rigged GLBs,
-# optimises & validates them, and uploads them as an artifact (and, on dispatch with
-# commit=true, commits them to public/models).
+# renders previews, and uploads everything as an artifact.
 on:
   workflow_dispatch:
-    inputs:
-      stage:
-        description: "probe | build"
-        default: probe
-      commit:
-        description: "commit generated models to the branch"
-        default: "false"
   push:
     paths:
       - ".github/workflows/characters.yml"
       - "characters/**"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  probe:
-    if: github.event_name == 'push' || inputs.stage == 'probe'
+  generate:
     runs-on: ubuntu-latest
+    env:
+      BLENDER: ${{ github.workspace }}/blender/blender
+      CHAR_OUT: ${{ github.workspace }}/chars-out
     steps:
-      - name: Blender
+      - uses: actions/checkout@v4
+
+      - name: Cache Blender + MPFB + assets
+        uses: actions/cache@v4
+        with:
+          path: |
+            blender.tar.xz
+            mh_assets.zip
+          key: blender-4.2.9-mpfb-assets-v1
+
+      - name: Install Blender 4.2 LTS
         run: |
-          set -x
-          for v in 4.2.9 4.2.8 4.2.5 4.2.3 4.2.0; do
-            if curl -fsSLo blender.tar.xz https://download.blender.org/release/Blender4.2/blender-$v-linux-x64.tar.xz; then echo "got $v"; break; fi
-          done
+          [ -f blender.tar.xz ] || curl -fsSLo blender.tar.xz https://download.blender.org/release/Blender4.2/blender-4.2.9-linux-x64.tar.xz
           tar xf blender.tar.xz && mv blender-*-linux-x64 blender
           sudo apt-get update -qq && sudo apt-get install -y -qq libxi6 libxkbcommon0 libxxf86vm1 libgl1 libegl1 libsm6 >/dev/null
-          ./blender/blender --version
-      - name: MPFB source
+          $BLENDER --version | head -1
+
+      - name: Install MPFB extension
         run: |
           git clone --depth 1 https://github.com/makehumancommunity/mpfb2.git
-          cd mpfb2 && git log -1 --format='%H %cd' && ls && ls src/mpfb | head -50
-          cat src/mpfb/blender_manifest.toml 2>/dev/null | head -30
-          ls script_samples || true
-          for f in script_samples/*.md script_samples/*.py; do echo "===== $f"; head -c 6000 "$f"; done 2>/dev/null | head -700
-      - name: Asset pack locations
+          (cd mpfb2/src && zip -qr ../../mpfb.zip mpfb)
+          $BLENDER --background --factory-startup --command extension install-file -r user_default -e mpfb.zip
+          grep -rn "def .*pack\|zipfile" mpfb2/src/mpfb/ui/*/*.py mpfb2/src/mpfb/services/assetservice.py | grep -i "zip\|pack" | head -20
+
+      - name: Download MakeHuman system assets (CC0)
         run: |
-          cd mpfb2
-          grep -rhoE "https?://[^\"' )]+(zip|asset[^\"' )]*)" src docs 2>/dev/null | sort -u | head -40
-          grep -rn "system_assets\|makehuman_system_assets" src | head -20
-          ls src/mpfb/data | head -40
-      - name: Services API overview
+          if [ ! -f mh_assets.zip ]; then
+            page=$(curl -fsSL https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html)
+            url=$(echo "$page" | grep -oE 'https?://[^"]+\.zip' | head -1)
+            echo "pack url: $url"
+            curl -fsSLo mh_assets.zip "$url"
+          fi
+          ls -la mh_assets.zip
+          unzip -l mh_assets.zip | head -25
+
+      - name: Install asset pack into MPFB user data
         run: |
-          cd mpfb2/src/mpfb/services
-          ls
-          grep -n "def " humanservice.py | head -80
-          grep -n "def " rigservice.py | head -40 || true
-          grep -n "def " assetservice.py | head -40 || true
-          grep -n "def " targetservice.py | head -60 || true
-          grep -n "def " materialservice.py | head -40 || true
+          DATA=$($BLENDER --background --python-expr "import sys,importlib; m=[importlib.import_module(k) for k in list(sys.modules) if k.endswith('mpfb.services.locationservice')][0]; print('USERDATA='+m.LocationService.get_user_data())" 2>/dev/null | grep USERDATA= | cut -d= -f2)
+          echo "user data: $DATA"
+          mkdir -p "$DATA" && unzip -qo mh_assets.zip -d "$DATA"
+          ls "$DATA" | head -30
+
+      - name: Generate probe character
+        run: |
+          mkdir -p "$CHAR_OUT"
+          $BLENDER --background --python characters/blender/probe_human.py 2>&1 | grep -E "\[chhath\]|Error|Traceback|File \"" | head -120
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: characters
+          path: chars-out
