@@ -150,11 +150,70 @@ if hair:
 # ───────────────────────── garment helpers ─────────────────────────
 
 
-def cloth_mat(name, rgb, rough=0.85, sheen=0.25):
+def weave_images(name, rgb, size=512, threads=48, stripe=None):
+    """Plain-weave cotton: base colour (with slub variation) + tangent-space normal map."""
+    rng = np.random.default_rng(abs(hash(name)) % 2**32)
+    yy, xx = np.mgrid[0:size, 0:size].astype(np.float32) / size
+    px, py = xx * threads * 2 * np.pi, yy * threads * 2 * np.pi
+    warp = 0.5 + 0.5 * np.cos(px)
+    weft = 0.5 + 0.5 * np.cos(py)
+    over = (np.floor(xx * threads) + np.floor(yy * threads)) % 2
+    height = np.where(over > 0, warp * 0.8 + weft * 0.2, weft * 0.8 + warp * 0.2)
+    slub = np.repeat(rng.normal(0, 0.035, size), size).reshape(size, size)  # uneven yarn
+    lum = 0.86 + 0.16 * height + slub + rng.normal(0, 0.015, (size, size))
+    col = np.stack([np.clip(rgb[i] * lum, 0, 1) for i in range(3)], axis=-1)
+    if stripe:  # woven border lines (e.g. gold thread in a red border)
+        band = (np.abs(((yy * 4) % 1) - 0.5) < 0.06)
+        col[band] = np.array(stripe) * lum[band, None]
+    gx = np.roll(height, -1, 1) - np.roll(height, 1, 1)
+    gy = np.roll(height, -1, 0) - np.roll(height, 1, 0)
+    n = np.stack([-gx * 1.5, -gy * 1.5, np.ones_like(gx)], -1)
+    n /= np.linalg.norm(n, axis=-1, keepdims=True)
+    nrm = n * 0.5 + 0.5
+    imgs = []
+    for tag, arr in (("col", col), ("nrm", nrm)):
+        img = bpy.data.images.new(f"{SPEC_ID}_{name}_{tag}", size, size, alpha=False)
+        rgba = np.concatenate([arr, np.ones((size, size, 1), np.float32)], -1)[::-1]
+        img.pixels.foreach_set(rgba.astype(np.float32).ravel())
+        if tag == "nrm":
+            img.colorspace_settings.name = "Non-Color"
+        img.pack()
+        imgs.append(img)
+    return imgs
+
+
+def cylindrical_uv(ob, tile=0.12):
+    """u = arc length around the body axis, v = height; one texture tile = `tile` metres."""
+    me = ob.data
+    uv = me.uv_layers.new(name="UVMap") if not me.uv_layers else me.uv_layers[0]
+    me.uv_layers.active = uv
+    for poly in me.polygons:
+        cx = sum((ob.matrix_world @ me.vertices[i].co).x for i in poly.vertices) / len(poly.vertices)
+        cy = sum((ob.matrix_world @ me.vertices[i].co).y for i in poly.vertices) / len(poly.vertices)
+        a0 = math.atan2(cy, cx)
+        for li in poly.loop_indices:
+            co = ob.matrix_world @ me.vertices[me.loops[li].vertex_index].co
+            a = math.atan2(co.y, co.x)
+            da = math.atan2(math.sin(a - a0), math.cos(a - a0))  # no seam tearing inside a face
+            uv.data[li].uv = ((a0 + da) * 0.2 / tile, co.z / tile)
+
+
+def cloth_mat(name, rgb, rough=0.85, sheen=0.25, stripe=None):
     m = bpy.data.materials.new(f"{SPEC_ID}_{name}")
     m.use_nodes = True
-    b = next(n for n in m.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    nt = m.node_tree
+    b = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
     b.inputs["Base Color"].default_value = (*[c ** 2.2 for c in rgb], 1)
+    col_img, nrm_img = weave_images(name, rgb, stripe=stripe)
+    tc = nt.nodes.new("ShaderNodeTexImage")
+    tc.image = col_img
+    nt.links.new(tc.outputs["Color"], b.inputs["Base Color"])
+    tn = nt.nodes.new("ShaderNodeTexImage")
+    tn.image = nrm_img
+    nm = nt.nodes.new("ShaderNodeNormalMap")
+    nm.inputs["Strength"].default_value = 0.6
+    nt.links.new(tn.outputs["Color"], nm.inputs["Color"])
+    nt.links.new(nm.outputs["Normal"], b.inputs["Normal"])
     b.inputs["Roughness"].default_value = rough
     if "Sheen Weight" in b.inputs:
         b.inputs["Sheen Weight"].default_value = sheen
@@ -289,7 +348,7 @@ TORSO = ["mixamorig:Spine", "mixamorig:Spine1", "mixamorig:Spine2", "mixamorig:L
 # ───────────────────────── wrapped lower garment (saree / dhoti / petticoat) ─────────────────────────
 
 
-def wrap_skirt(name, z_top, z_bottom, mat, border_mat, pleats=True, flare=0.04, ease=0.012, rows=22, segs=56):
+def wrap_skirt(name, z_top, z_bottom, mat, border_mat, pleats=True, flare=0.05, ease=0.012, rows=22, segs=72):
     bm = bmesh.new()
     rings = []
     hip_slab = body_slab(L["Hips"].z - 0.12, L["Hips"].z + 0.02)
@@ -317,8 +376,8 @@ def wrap_skirt(name, z_top, z_bottom, mat, border_mat, pleats=True, flare=0.04, 
             da = math.atan2(math.sin(a + math.pi / 2), math.cos(a + math.pi / 2))
             if pleats and abs(da) < 0.55 and t > 0.08:
                 pleat = 0.012 * min(1, t * 3) * (0.5 + 0.5 * math.cos(da * 22))
-            fold = 0.006 * t * (math.sin(a * 9 + 0.7) + 0.5 * math.sin(a * 17 + 2.1))
-            hem = 0.008 * math.sin(a * 5) * (1 if r == rows else 0)
+            fold = (0.004 + 0.012 * t * t) * (math.sin(a * 9 + 0.7) + 0.55 * math.sin(a * 17 + 2.1) + 0.3 * math.sin(a * 31))
+            hem = (0.01 * math.sin(a * 5) + (0.012 if (pleats and abs(da) < 0.55) else 0)) * (1 if r == rows else 0)
             ring.append(bm.verts.new((cx + (rr_x + pleat + fold) * math.cos(a), cy + (rr_y + pleat + fold) * math.sin(a), z + hem)))
         rings.append(ring)
     bm.verts.ensure_lookup_table()
@@ -410,15 +469,25 @@ def hood(name, offset, mat, border_mat, open_deg=62, rows=28, segs=64):
             rad = R + (sh_r + 0.02 - R) * (k ** 1.2)
         rad = max(rad, 0.004)
         row = []
+        # curved face opening: narrow over the forehead, widest at the cheeks,
+        # closing again below the chin so the two ends fall in front of the shoulders
+        zf = (z - L["Head"].z) / max(head_top_z - L["Head"].z, 1e-3)  # 0 at chin, 1 at crown
+        if zf > 0.75:
+            half = math.radians(34 + (open_deg - 34) * (1 - (zf - 0.75) / 0.25))
+        elif zf > 0:
+            half = math.radians(open_deg)
+        else:
+            half = math.radians(max(22.0, open_deg - 40 * min(1.0, -zf * 1.4)))
+        below = max(0.0, (L["Neck"].z - z) / max(L["Neck"].z - z_bot, 1e-3))
         for sgi in range(segs + 1):
-            # angle measured from the front (−Y); leave the face open
             u = sgi / segs
-            ang = open_a + (2 * math.pi - 2 * open_a) * u
-            # the opening narrows above the brow so the drape comes over the forehead
-            if z > head_top_z - 0.045:
-                ang = (ang - math.pi) * 1.0 + math.pi
-            x = hx + rad * math.sin(ang)
-            y = hy - rad * math.cos(ang)
+            ang = half + (2 * math.pi - 2 * half) * u
+            # soft vertical folds where the cloth hangs free
+            rr = rad + below * (0.009 * math.sin(ang * 7 + 0.4) + 0.005 * math.sin(ang * 13))
+            # the free front ends hang slightly forward and inward, like real cotton
+            front = math.cos(ang) ** 8 if math.cos(ang) > 0 else 0
+            x = hx + rr * math.sin(ang) * (1 - 0.25 * front * below)
+            y = hy - rr * math.cos(ang) - 0.03 * front * below
             row.append(bm.verts.new((x, y, z)))
         grid.append(row)
     for r in range(rows):
@@ -427,6 +496,8 @@ def hood(name, offset, mat, border_mat, open_deg=62, rows=28, segs=64):
             f.material_index = 1 if sgi < 2 or sgi >= segs - 2 else 0
     # close the crown so there is no hole on top
     bmesh.ops.remove_doubles(bm, verts=grid[0], dist=0.006)
+    for _ in range(2):
+        bmesh.ops.smooth_vert(bm, verts=[v for v in bm.verts if not v.is_boundary], factor=0.4, use_axis_x=True, use_axis_y=True, use_axis_z=True)
     bm.normal_update()
     ob = new_obj(name, bm, [mat, border_mat])
     skin_from_body(ob, k=6, no_arms=True)
@@ -468,7 +539,7 @@ def dot(name, pos, radius, mat, bone="mixamorig:Head"):
 # ───────────────────────── dress the character ─────────────────────────
 C = S["colors"]
 main = cloth_mat("main", C["main"])
-border = cloth_mat("border", C["border"], rough=0.7, sheen=0.4)
+border = cloth_mat("border", C["border"], rough=0.7, sheen=0.4, stripe=C.get("thread", (0.86, 0.66, 0.22)))
 neck_z, hips_z, foot_z = L["Neck"].z, L["Hips"].z, L["LeftFoot"].z
 shoulder_l, shoulder_r = L["LeftShoulder"], L["RightShoulder"]
 front_y = body_slab(L["Spine2"].z - 0.05, L["Spine2"].z + 0.05)[:, 1].min()
@@ -516,7 +587,38 @@ else:  # kurta_pyjama / child
     py = cloth_mat("pyjama", C.get("pyjama", (0.94, 0.92, 0.85)))
     garments.append(body_shell("pyjama", ["mixamorig:Hips", "mixamorig:LeftUpLeg", "mixamorig:RightUpLeg", "mixamorig:LeftLeg", "mixamorig:RightLeg"], foot_z + 0.06, hips_z + 0.05, 0.007, py))
 
+for g in garments:
+    cylindrical_uv(g)
 log("garments", [(g.name, len(g.data.polygons)) for g in garments])
+
+# ───────────────────────── fit the web budget ─────────────────────────
+BUDGET = S.get("tri_budget", 24000)
+for o in [o for o in bpy.data.objects if o.type == "MESH" and "teeth" in o.name.lower()]:
+    bpy.data.objects.remove(o, do_unlink=True)  # hidden behind closed lips
+
+
+def tri_count():
+    return sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in bpy.data.objects if o.type == "MESH")
+
+
+before = tri_count()
+others = before - sum(len(p.vertices) - 2 for p in body.data.polygons)
+body_tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
+ratio = max(0.25, min(1.0, (BUDGET - others) / max(body_tris, 1)))
+if ratio < 1.0:
+    dec = body.modifiers.new("web_decimate", "DECIMATE")
+    dec.ratio = ratio
+    dec.use_symmetry = True
+    dec.symmetry_axis = "X"
+    body.modifiers.move(len(body.modifiers) - 1, 0)  # before the armature modifier
+    with bpy.context.temp_override(object=body, active_object=body, selected_objects=[body]):
+        bpy.ops.object.modifier_apply(modifier="web_decimate")
+log(f"triangles {before} → {tri_count()} (body ratio {ratio:.2f})")
+for img in bpy.data.images:
+    if img.size[0] > 1024 and not img.name.endswith(("_col", "_nrm")):
+        img.scale(1024, 1024)
+        img.pack()
+log("images", [(i.name, tuple(i.size)) for i in bpy.data.images if i.size[0]])
 
 # ───────────────────────── export ─────────────────────────
 for o in bpy.data.objects:
