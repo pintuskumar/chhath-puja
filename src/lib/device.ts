@@ -63,14 +63,46 @@ export function useEffectiveQuality(): Exclude<Quality, "auto"> {
  */
 export function use3D() {
   const renderer = usePrefs((s) => s.renderer);
+  const idle = useIdleAfterLoad();
   const [ok, setOk] = useState(false);
   useEffect(() => {
+    if (!idle) return;
     if (renderer === "2d") return setOk(false);
     if (!hasWebGL()) return setOk(false);
     if (renderer === "3d") return setOk(true);
     setOk(detectQuality() !== "low");
-  }, [renderer]);
+  }, [renderer, idle]);
   return ok;
+}
+
+let idleReached = false;
+/**
+ * True once the page has loaded and the main thread is idle. Heavy WebGL work is
+ * deferred until then so text, navigation and the 2D scene are usable first.
+ */
+export function useIdleAfterLoad() {
+  const [ready, setReady] = useState(idleReached);
+  useEffect(() => {
+    if (idleReached) return;
+    let cancelled = false;
+    const go = () => {
+      const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+      const done = () => {
+        if (cancelled) return;
+        idleReached = true;
+        setReady(true);
+      };
+      if (w.requestIdleCallback) w.requestIdleCallback(done, { timeout: 2500 });
+      else window.setTimeout(done, 800);
+    };
+    if (document.readyState === "complete") go();
+    else window.addEventListener("load", go, { once: true });
+    return () => {
+      cancelled = true;
+      window.removeEventListener("load", go);
+    };
+  }, []);
+  return ready;
 }
 
 export function useHydrated() {

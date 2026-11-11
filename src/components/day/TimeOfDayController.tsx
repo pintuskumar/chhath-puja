@@ -58,6 +58,7 @@ export function TimeOfDayController({ day }: { day: Day }) {
         max={tc.max}
         step={0.05}
         value={hour}
+        aria-label={t(tc.label)}
         aria-valuetext={formatHour(hour, lang)}
         onChange={(e) => setOverride(Number(e.target.value))}
       />
