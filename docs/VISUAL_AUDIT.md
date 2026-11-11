@@ -110,6 +110,14 @@ So the following must be **acquired by you** (or a 3D artist), and then I can in
 
 The existing hotspots, panels, scroll story, controls, language, audio and progress are untouched by any of the above. They're driven by `choreography.ts` and the store, not by the meshes.
 
-## 7. Decision needed
+## 7. Decision: Route A (MetaHuman). Status
 
-Pick a route (A, B or C) and who supplies the assets. While you source the models, I can build and land steps 1–3 and 7 against **one** placeholder rigged mannequin that you commit (any licensed GLB with the required skeleton), so the realistic characters slot in without code changes. That placeholder would be clearly labelled and **not** presented as realistic.
+| Step | Status |
+|---|---|
+| Rigged-character pipeline on the site (`src/three/characters/`): GLB loading (Meshopt), SkeletonUtils clones, clip cross-fades, stride-synced walk, props on hand/head bones, procedural fallback | ✅ built, verified in CI with a grey **test mannequin** (not realistic, CI-only) |
+| Image-based lighting + soft shadows for PBR skin/cloth (on only when realistic characters exist) | ✅ built |
+| Asset validator `npm run check:models` (rig, fingers, grip sockets, clips, budgets, licence) and optimiser `npm run models:optimize` | ✅ |
+| Export guide for you: [METAHUMAN_GUIDE.md](METAHUMAN_GUIDE.md) | ✅ |
+| `vrati_a.glb` + core clips (MetaHuman, saree, mocap) | ⏳ **waiting on you** |
+| Hand IK, foot IK on steps, wet-saree material | ⏳ after the first real asset (needs the real skeleton to tune) |
+| Before/after Sandhya Arghya with identical cameras | ⏳ after the first real asset |

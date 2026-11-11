@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "note": "Realistic rigged characters (MetaHuman route). Empty 'characters' = the site uses the stylised procedural figures. See docs/METAHUMAN_GUIDE.md.",
+  "clips": null,
+  "walkSpeed": 1.1,
+  "yawOffsetDeg": 0,
+  "characters": {}
+}

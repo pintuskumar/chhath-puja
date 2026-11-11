@@ -32,7 +32,7 @@ import {
   Coconut,
   Fruits,
 } from "./props";
-import { Devotee } from "./Devotee";
+import { Character } from "./characters/Character";
 import { useDirector } from "./Director";
 import { YARD, choreograph } from "./choreography";
 import { skyAt } from "@/lib/sky";
@@ -353,7 +353,7 @@ export default function CourtyardEnvironment({ anim, quality }: { anim: Animatio
         ))}
       <pointLight ref={lamp} color="#ffae5a" position={[YARD.shrine[0], 1.2, YARD.shrine[2] + 1.2]} distance={7} decay={2} />
       {actorKeys.map((k) => (
-        <Devotee key={`${anim}-${k}`} get={() => d.current.actors[k]} reduced={d.current.reduced} />
+        <Character key={`${anim}-${k}`} get={() => d.current.actors[k]} reduced={d.current.reduced} quality={quality} />
       ))}
     </group>
   );

@@ -25,6 +25,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Content integrity (translations, references, choreography)
         run: npm run check:content
+      - name: Realistic character assets (manifest, rigs, budgets, licences)
+        run: npm run check:models
       - name: Typecheck
         run: npm run typecheck
       - name: Build (static export, root path — used for Lighthouse)
@@ -76,6 +78,8 @@ jobs:
         with:
           name: site-root
           path: out
+      - name: Generate rig test fixture (grey mannequin, CI only)
+        run: python3 scripts/make-test-rig.py out/models/_fixture
       - name: Install Playwright
         run: npm i --no-save --no-audit --no-fund playwright@1.49.1 && npx playwright install --with-deps chromium
       - name: Serve & run

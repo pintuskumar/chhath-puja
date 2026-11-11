@@ -9,6 +9,7 @@ import { Director } from "./Director";
 import { Atmosphere } from "./Atmosphere";
 import { CameraRig } from "./CameraRig";
 import { Hotspots } from "./Hotspots";
+import { RealisticLighting } from "./characters/RealisticLighting";
 import { useExperience } from "@/lib/store";
 import type { Scene, SceneStage, TimeControl } from "@/content/types";
 
@@ -36,6 +37,7 @@ export default function DayWorld({ scenes, timeControl, quality, reduced, free, 
     <Director stages={stages} timeControl={timeControl} reduced={reduced} free={free} intro={intro} fixedIndex={fixedIndex}>
       <Atmosphere shadows={quality === "high"} />
       <CameraRig free={free} />
+      <RealisticLighting quality={quality} />
       <Suspense fallback={null}>
         {stage.environment === "courtyard" ? (
           <CourtyardEnvironment anim={stage.animation} quality={quality} />

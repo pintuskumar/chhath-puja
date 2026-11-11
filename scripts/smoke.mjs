@@ -120,6 +120,28 @@ for (const [vpName, viewport] of [
   await free.ctx.close();
 }
 
+// Rigged-character pipeline (CI fixture mannequin with UE5 bone names; NOT realistic art).
+if (fs.existsSync("out/models/_fixture/manifest.json")) {
+  for (const [vpName, viewport] of [
+    ["desktop", { width: 1280, height: 800 }],
+    ["mobile", { width: 390, height: 844 }],
+  ]) {
+    const rig = await session(`${vpName}-rig`, viewport, "3d");
+    await rig.ctx.route("**/models/manifest.json", (route) =>
+      route.fulfill({ contentType: "application/json", body: fs.readFileSync("out/models/_fixture/manifest.json", "utf8") }),
+    );
+    for (const [scene, file] of [["sandhya-arghya", "arghya"], ["ghat-ki-or", "procession"]]) {
+      await rig.page.goto(`${BASE}/day/sandhya-arghya/#${scene}`, { waitUntil: "networkidle" });
+      await wait(7000);
+      const n = await rig.page.evaluate(() => window.__riggedCharacters ?? 0);
+      console.log(`${vpName} rig ${scene}: rigged characters mounted = ${n}`);
+      if (!n) errors.push(`[${vpName}-rig] no rigged characters did mount on ${scene}`);
+      await shot(rig.page, `rig-${vpName}-${file}`);
+    }
+    await rig.ctx.close();
+  }
+}
+
 // 2D fallback + reduced motion
 const twoD = await session("2d", { width: 390, height: 844 }, "2d", { motion: "reduced" });
 for (const route of ["/", "/journey/", "/day/usha-arghya/", "/traditions/"]) {
@@ -133,4 +155,4 @@ await twoD.ctx.close();
 await browser.close();
 const unique = [...new Set(errors)];
 console.log(unique.length ? `\nERRORS (${unique.length}):\n${unique.join("\n")}` : "\nSMOKE OK — no runtime errors");
-process.exit(unique.some((e) => e.includes("pageerror") || e.includes("CSP") || e.includes("no WebGL") || e.includes("did not")) ? 1 : 0);
+process.exit(unique.some((e) => e.includes("pageerror") || e.includes("CSP") || e.includes("no WebGL") || e.includes("did not") || e.includes("did mount")) ? 1 : 0);

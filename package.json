@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "npx serve out",
     "typecheck": "tsc --noEmit",
-    "check:content": "node --experimental-strip-types --no-warnings scripts/check-content.mjs"
+    "check:content": "node --experimental-strip-types --no-warnings scripts/check-content.mjs",
+    "check:models": "node scripts/check-models.mjs",
+    "models:optimize": "node scripts/optimize-models.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.0.0",

@@ -11,7 +11,8 @@ import { useFrame } from "@react-three/fiber";
 import { mat, lathe } from "./materials";
 import { stoneTexture } from "./textures";
 import { Water } from "./Water";
-import { Devotee, LOOKS } from "./Devotee";
+import { LOOKS } from "./Devotee";
+import { Character } from "./characters/Character";
 import { Daura, Soop, Sugarcane, Diya, Kalash } from "./props";
 import { useDirector } from "./Director";
 import { GHAT, stepTop, choreograph } from "./choreography";
@@ -377,7 +378,7 @@ export default function GhatEnvironment({ anim, quality }: { anim: AnimationId; 
       <FamilySpot anim={anim} />
       {anim === "evening-close" && <Kosi />}
       {actorKeys.map((k) => (
-        <Devotee key={`${anim}-${k}`} get={() => d.current.actors[k]} reduced={d.current.reduced} />
+        <Character key={`${anim}-${k}`} get={() => d.current.actors[k]} reduced={d.current.reduced} quality={quality} />
       ))}
     </group>
   );
