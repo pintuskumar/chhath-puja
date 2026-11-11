@@ -46,6 +46,15 @@ h = HumanService.create_human()
 for k, v in S["macros"].items():
     HOP.set_value(k, v, entity_reference=h)
 TargetService.reapply_macro_details(h)
+# Individual faces: MakeHuman detail targets (nose, lips, cheeks, jaw, eyes) per character,
+# loaded BEFORE the eyes/brows/hair are fitted so the proxies follow the new shape.
+for tname, w in S.get("face", {}).items():
+    tp = TargetService.target_full_path(tname)
+    if tp and os.path.basename(tp).startswith(tname + "."):
+        TargetService.load_target(h, tp, weight=float(w))
+    else:
+        log("face target not found:", tname)
+log(f"face: {len(S.get('face', {}))} detail targets")
 
 skin_path = AssetService.find_asset_absolute_path(S["skin"] + ".mhmat", asset_subdir="skins")
 HumanService.set_character_skin(skin_path, h, skin_type="GAMEENGINE")
@@ -134,6 +143,43 @@ if skin_mat:
         bsdf.inputs["Roughness"].default_value = 0.58
     if "Specular IOR Level" in bsdf.inputs:
         bsdf.inputs["Specular IOR Level"].default_value = 0.3
+    # Pore micro-detail: tileable 256 px normal map (fine pores + soft unevenness), tiled over
+    # the skin UVs via a Mapping node (exported as KHR_texture_transform). Breaks the plastic look.
+    if not any(l.to_socket == bsdf.inputs["Normal"] for l in skin_mat.node_tree.links):
+        N = 256
+        rng = np.random.default_rng(11)
+        ky, kx = np.fft.fftfreq(N)[:, None], np.fft.fftfreq(N)[None, :]
+
+        def band(sig):
+            f = np.fft.fft2(rng.random((N, N)))
+            h = np.real(np.fft.ifft2(f * np.exp(-2 * math.pi**2 * sig**2 * (kx**2 + ky**2))))
+            return (h - h.mean()) / (h.std() + 1e-6)
+
+        hgt = 0.65 * np.minimum(band(0.9), 0.6) + 0.35 * band(5.0)  # clipped → pits, not bumps
+        dx = (np.roll(hgt, -1, 1) - np.roll(hgt, 1, 1)) * 0.5
+        dy = (np.roll(hgt, -1, 0) - np.roll(hgt, 1, 0)) * 0.5
+        n = np.stack([-dx * 0.35, -dy * 0.35, np.ones_like(hgt)], -1)
+        n /= np.linalg.norm(n, axis=-1, keepdims=True)
+        px = np.concatenate([n * 0.5 + 0.5, np.ones((N, N, 1))], -1).astype(np.float32)
+        pimg = bpy.data.images.new(f"{SPEC_ID}_skin_pores", N, N, alpha=False)
+        pimg.colorspace_settings.name = "Non-Color"
+        pimg.pixels.foreach_set(px.ravel())
+        pimg.pack()
+        nt = skin_mat.node_tree
+        uv = nt.nodes.new("ShaderNodeTexCoord")
+        mp = nt.nodes.new("ShaderNodeMapping")
+        mp.inputs["Scale"].default_value = (28.0, 28.0, 1.0)
+        tx = nt.nodes.new("ShaderNodeTexImage")
+        tx.image = pimg
+        nm = nt.nodes.new("ShaderNodeNormalMap")
+        nm.inputs["Strength"].default_value = 0.45
+        nt.links.new(uv.outputs["UV"], mp.inputs["Vector"])
+        nt.links.new(mp.outputs["Vector"], tx.inputs["Vector"])
+        nt.links.new(tx.outputs["Color"], nm.inputs["Color"])
+        nt.links.new(nm.outputs["Normal"], bsdf.inputs["Normal"])
+        log("skin: pore normal map 256px ×28 tiling")
+    # a touch of sheen on the T-zone is out of reach without a mask; settle for slightly less matte skin
+    bsdf.inputs["Roughness"].default_value = min(bsdf.inputs["Roughness"].default_value, 0.5)
 # MakeHuman's default low-poly eye texture has a red-brown iris that reads as red eyes on
 # screen → re-hue reddish pixels to a dark South-Asian brown, keeping their luminance.
 for eo in [o for o in keep if o.type == "MESH" and "low-poly" in o.name.lower()]:
@@ -141,6 +187,9 @@ for eo in [o for o in keep if o.type == "MESH" and "low-poly" in o.name.lower()]
         m = slot.material
         if not m or not m.use_nodes:
             continue
+        for n in m.node_tree.nodes:
+            if n.type == "BSDF_PRINCIPLED":
+                n.inputs["Roughness"].default_value = 0.08  # wet cornea → catchlight
         for n in m.node_tree.nodes:
             if n.type != "TEX_IMAGE" or not n.image or n.image.get("rehued"):
                 continue

@@ -136,6 +136,12 @@ function fixHumanAlpha(x: THREE.Material) {
     x.alphaTest = 0;
     x.depthWrite = true;
     x.side = THREE.FrontSide; // no inner faces showing through
+    if (/low-poly/i.test(x.name) && (x as THREE.MeshStandardMaterial).isMeshStandardMaterial) {
+      // wet cornea: a sharp catchlight from the scene's environment light (eyes read alive)
+      const e = x as THREE.MeshStandardMaterial;
+      e.roughness = 0.08;
+      e.envMapIntensity = 1.6;
+    }
   } else {
     x.transparent = false; // hair
     x.alphaTest = 0.5;

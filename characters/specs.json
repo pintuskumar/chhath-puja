@@ -6,9 +6,9 @@
     "macros": {
       "gender": 0.0,
       "age": 0.62,
-      "african": 0.18,
-      "asian": 0.32,
-      "caucasian": 0.5,
+      "african": 0.3,
+      "asian": 0.12,
+      "caucasian": 0.58,
       "height": 0.4,
       "weight": 0.56,
       "muscle": 0.45,
@@ -44,6 +44,19 @@
         0.1,
         0.12
       ]
+    },
+    "face": {
+      "head-oval": 0.4,
+      "nose-flaring-incr": 0.35,
+      "nose-width2-incr": 0.3,
+      "nose-point-width-incr": 0.3,
+      "mouth-lowerlip-volume-incr": 0.4,
+      "mouth-upperlip-volume-incr": 0.3,
+      "chin-width-incr": 0.15,
+      "l-cheek-bones-incr": 0.3,
+      "l-eye-scale-incr": 0.2,
+      "r-cheek-bones-incr": 0.3,
+      "r-eye-scale-incr": 0.2
     }
   },
   "vrati_b": {
@@ -53,9 +66,9 @@
     "macros": {
       "gender": 0.0,
       "age": 0.56,
-      "african": 0.18,
-      "asian": 0.32,
-      "caucasian": 0.5,
+      "african": 0.3,
+      "asian": 0.12,
+      "caucasian": 0.58,
       "muscle": 0.45,
       "proportions": 0.5,
       "height": 0.35,
@@ -91,6 +104,21 @@
         0.1,
         0.12
       ]
+    },
+    "face": {
+      "head-round": 0.4,
+      "nose-scale-vert-decr": 0.2,
+      "nose-flaring-incr": 0.25,
+      "nose-hump-decr": 0.3,
+      "mouth-upperlip-volume-incr": 0.45,
+      "mouth-lowerlip-volume-incr": 0.5,
+      "chin-height-decr": 0.2,
+      "l-eye-scale-incr": 0.3,
+      "l-eye-height2-incr": 0.25,
+      "l-cheek-volume-incr": 0.3,
+      "r-eye-scale-incr": 0.3,
+      "r-eye-height2-incr": 0.25,
+      "r-cheek-volume-incr": 0.3
     }
   },
   "vrati_c": {
@@ -100,9 +128,9 @@
     "macros": {
       "gender": 0.0,
       "age": 0.7,
-      "african": 0.18,
-      "asian": 0.32,
-      "caucasian": 0.5,
+      "african": 0.3,
+      "asian": 0.12,
+      "caucasian": 0.58,
       "muscle": 0.45,
       "proportions": 0.5,
       "height": 0.38,
@@ -138,6 +166,20 @@
         0.08,
         0.1
       ]
+    },
+    "face": {
+      "head-rectangular": 0.35,
+      "nose-hump-incr": 0.35,
+      "nose-scale-vert-incr": 0.25,
+      "nose-point-down": 0.2,
+      "mouth-scale-horiz-incr": 0.2,
+      "mouth-lowerlip-volume-incr": 0.3,
+      "chin-prominent-incr": 0.3,
+      "forehead-scale-vert-incr": 0.2,
+      "l-cheek-bones-incr": 0.4,
+      "l-eye-bag-incr": 0.3,
+      "r-cheek-bones-incr": 0.4,
+      "r-eye-bag-incr": 0.3
     }
   },
   "elder": {
@@ -147,9 +189,9 @@
     "macros": {
       "gender": 0.0,
       "age": 0.83,
-      "african": 0.18,
-      "asian": 0.32,
-      "caucasian": 0.5,
+      "african": 0.3,
+      "asian": 0.12,
+      "caucasian": 0.58,
       "muscle": 0.45,
       "proportions": 0.5,
       "height": 0.3,
@@ -190,6 +232,19 @@
         0.85,
         0.6
       ]
+    },
+    "face": {
+      "head-diamond": 0.3,
+      "nose-scale-horiz-incr": 0.3,
+      "nose-flaring-incr": 0.4,
+      "nose-point-down": 0.3,
+      "mouth-angles-down": 0.3,
+      "mouth-upperlip-volume-decr": 0.2,
+      "chin-width-decr": 0.2,
+      "l-cheek-volume-decr": 0.35,
+      "l-eye-bag-incr": 0.5,
+      "r-cheek-volume-decr": 0.35,
+      "r-eye-bag-incr": 0.5
     }
   },
   "man_dhoti": {
@@ -199,9 +254,9 @@
     "macros": {
       "gender": 1.0,
       "age": 0.66,
-      "african": 0.18,
-      "asian": 0.32,
-      "caucasian": 0.5,
+      "african": 0.3,
+      "asian": 0.12,
+      "caucasian": 0.58,
       "height": 0.45,
       "weight": 0.55,
       "muscle": 0.5,
@@ -237,6 +292,20 @@
         0.13,
         0.14
       ]
+    },
+    "face": {
+      "head-square": 0.4,
+      "nose-width2-incr": 0.35,
+      "nose-hump-incr": 0.25,
+      "nose-scale-vert-incr": 0.2,
+      "mouth-lowerlip-volume-incr": 0.35,
+      "chin-width-incr": 0.3,
+      "chin-bones-incr": 0.2,
+      "eyebrows-trans-down": 0.2,
+      "l-cheek-bones-incr": 0.25,
+      "l-eye-bag-incr": 0.25,
+      "r-cheek-bones-incr": 0.25,
+      "r-eye-bag-incr": 0.25
     }
   },
   "young_man": {
@@ -246,9 +315,9 @@
     "macros": {
       "gender": 1.0,
       "age": 0.53,
-      "african": 0.18,
-      "asian": 0.32,
-      "caucasian": 0.5,
+      "african": 0.3,
+      "asian": 0.12,
+      "caucasian": 0.58,
       "height": 0.5,
       "weight": 0.48,
       "muscle": 0.52,
@@ -279,6 +348,20 @@
         0.92,
         0.85
       ]
+    },
+    "face": {
+      "head-oval": 0.3,
+      "head-invertedtriangular": 0.25,
+      "nose-scale-vert-incr": 0.25,
+      "nose-point-width-decr": 0.15,
+      "nose-flaring-incr": 0.2,
+      "mouth-upperlip-volume-incr": 0.3,
+      "mouth-lowerlip-volume-incr": 0.3,
+      "chin-prominent-incr": 0.25,
+      "l-cheek-inner-decr": 0.3,
+      "l-eye-scale-incr": 0.15,
+      "r-cheek-inner-decr": 0.3,
+      "r-eye-scale-incr": 0.15
     }
   },
   "child": {
@@ -289,9 +372,9 @@
     "macros": {
       "gender": 1.0,
       "age": 0.18,
-      "african": 0.18,
-      "asian": 0.32,
-      "caucasian": 0.5,
+      "african": 0.3,
+      "asian": 0.12,
+      "caucasian": 0.58,
       "height": 0.5,
       "weight": 0.5,
       "muscle": 0.5,
@@ -321,6 +404,16 @@
         0.92,
         0.85
       ]
+    },
+    "face": {
+      "head-round": 0.4,
+      "nose-scale-vert-decr": 0.25,
+      "nose-flaring-incr": 0.3,
+      "mouth-lowerlip-volume-incr": 0.35,
+      "l-eye-scale-incr": 0.3,
+      "l-cheek-volume-incr": 0.3,
+      "r-eye-scale-incr": 0.3,
+      "r-cheek-volume-incr": 0.3
     }
   }
 }
