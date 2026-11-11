@@ -140,13 +140,13 @@ Both pairs come from the same CI smoke-test step (`scripts/smoke.mjs`: scroll th
 
 | Role (`LookId`) | Before | After (`public/models/…`) | Size · tris |
 |---|---|---|---|
-| `vrati` | `Devotee` procedural, 16 primitives | `characters/vrati_a.glb`: yellow saree with red border, blouse, pallu, head drape, bindi, sindoor | 0.61 MB · 24.0k |
-| `vrati2`, `woman` | procedural | `characters/vrati_b.glb`: saffron saree | 0.67 MB · 24.0k |
-| `vrati3` | procedural | `characters/vrati_c.glb`: red saree with gold border | 0.62 MB · 24.0k |
-| `elder` | procedural | `characters/elder.glb`: maroon saree, grey hair | 0.68 MB · 24.0k |
-| `man` | procedural | `characters/man_dhoti.glb`: kurta, dhoti, gamchha | 0.62 MB · 24.0k |
-| `youngman` | procedural | `characters/young_man.glb`: saffron kurta, pyjama | 0.63 MB · 24.0k |
-| `child` | procedural | `characters/child.glb`: blue kurta, pyjama | 0.71 MB · 17.5k |
+| `vrati` | `Devotee` procedural, 16 primitives | `characters/vrati_a.glb`: yellow saree with red border, blouse, pallu, head drape, bindi, sindoor | 0.58 MB · 24.0k |
+| `vrati2`, `woman` | procedural | `characters/vrati_b.glb`: saffron saree | 0.66 MB · 24.0k |
+| `vrati3` | procedural | `characters/vrati_c.glb`: red saree with gold border | 0.60 MB · 24.0k |
+| `elder` | procedural | `characters/elder.glb`: maroon saree, grey hair | 0.66 MB · 24.0k |
+| `man` | procedural | `characters/man_dhoti.glb`: kurta, dhoti, gamchha | 0.61 MB · 24.0k |
+| `youngman` | procedural | `characters/young_man.glb`: saffron kurta, pyjama | 0.62 MB · 24.0k |
+| `child` | procedural | `characters/child.glb`: blue kurta, pyjama | 0.69 MB · 15.0k |
 | all animation | sine-wave limb rotation on primitives | `anims/chhath_clips.glb`: 16 clips on the shared Mixamo skeleton | 0.57 MB |
 
 What each character has: a skinned body with fingers and a `mixamorig:*` skeleton, plus `hand_r_grip`/`hand_l_grip` sockets. Garments are generated, cloth-simulated and skinned to the same skeleton. The cotton weave is in the base colour and normal maps. Files use Meshopt + WebP at 1024 px. The soop sits in a socket between both palms.

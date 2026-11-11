@@ -24,7 +24,7 @@ Format policy: **GLB** (Draco or Meshopt + KTX2 textures) for 3D, **SVG** for di
 | `src/three/Devotee.tsx` (`LOOKS`) | Vratis (yellow / saffron / red saree, pallu on head), elder, men in dhoti-kurta with gamchha, child | Procedural | ~20 meshes each | ✅ code | Common Chhath attire; long sindoor noted in text only |
 | Crowd silhouettes (`GhatEnvironment › Crowd`) | Distant devotees | Instanced lathe + sphere | 2 draw calls | ✅ code | Mixed saree colours |
 | `src/three/Devotee.tsx` (`LOOKS`) → now the **fallback** | Used only if a GLB fails to load or the manifest is emptied | Procedural | ~20 meshes each | ✅ code | — |
-| `public/models/characters/{vrati_a,vrati_b,vrati_c,elder,man_dhoti,young_man,child}.glb` | Rigged characters (Mixamo skeleton, fingers, grip sockets), generated garments with cotton weave, cloth-simulated drape | GLB, Meshopt + WebP 1024 | 24k tris (child 17.5k) · 0.61–0.71 MB each | ✅ generated in CI by `characters/blender/build_character.py` · **MakeHuman/MPFB, CC0** | Saree with pallu over the head, bindi + sindoor for the vratis; dhoti/kurta + gamchha; see `docs/VISUAL_AUDIT.md §8` |
+| `public/models/characters/{vrati_a,vrati_b,vrati_c,elder,man_dhoti,young_man,child}.glb` | Rigged characters (Mixamo skeleton, fingers, grip sockets), generated garments with cotton weave, cloth-simulated drape | GLB, Meshopt + WebP 1024 | 24k tris (child 15k) · 0.58–0.69 MB each | ✅ generated in CI by `characters/blender/build_character.py` · **MakeHuman/MPFB, CC0** | Saree with pallu over the head, bindi + sindoor for the vratis; dhoti/kurta + gamchha; see `docs/VISUAL_AUDIT.md §8` |
 
 ## 3. Ritual props (3D)
 
