@@ -15,7 +15,7 @@ permissions:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 170
     env:
       BLENDER: ${{ github.workspace }}/blender/blender
       CHAR_OUT: ${{ github.workspace }}/chars-out
@@ -86,7 +86,7 @@ jobs:
           ls "$DATA" | head -30
 
       - name: Build characters
-        timeout-minutes: 40
+        timeout-minutes: 100
         run: |
           mkdir -p "$CHAR_OUT"
           for id in $(python3 -c "import json;print(' '.join(json.load(open('characters/specs.json'))))"); do

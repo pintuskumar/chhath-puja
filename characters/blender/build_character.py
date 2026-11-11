@@ -150,7 +150,7 @@ if hair:
 # ───────────────────────── garment helpers ─────────────────────────
 
 
-def weave_images(name, rgb, size=512, threads=28, stripe=None):
+def weave_images(name, rgb, size=512, threads=56, stripe=None):
     """Plain-weave cotton: base colour (with slub variation) + tangent-space normal map."""
     rng = np.random.default_rng(abs(hash(name)) % 2**32)
     yy, xx = np.mgrid[0:size, 0:size].astype(np.float32) / size
@@ -159,7 +159,7 @@ def weave_images(name, rgb, size=512, threads=28, stripe=None):
     weft = 0.5 + 0.5 * np.cos(py)
     over = (np.floor(xx * threads) + np.floor(yy * threads)) % 2
     height = np.where(over > 0, warp * 0.8 + weft * 0.2, weft * 0.8 + warp * 0.2)
-    slub = np.repeat(rng.normal(0, 0.06, size), size).reshape(size, size) + np.tile(rng.normal(0, 0.03, size), (size, 1))  # uneven yarn
+    slub = np.repeat(rng.normal(0, 0.045, size), size).reshape(size, size) + np.tile(rng.normal(0, 0.03, size), (size, 1))  # uneven yarn
     lum = 0.86 + 0.16 * height + slub + rng.normal(0, 0.015, (size, size))
     col = np.stack([np.clip(rgb[i] * lum, 0, 1) for i in range(3)], axis=-1)
     if stripe:  # woven border lines (e.g. gold thread in a red border)
@@ -215,7 +215,7 @@ def cloth_mat(name, rgb, rough=0.85, sheen=0.25, stripe=None):
     tn = nt.nodes.new("ShaderNodeTexImage")
     tn.image = nrm_img
     nm = nt.nodes.new("ShaderNodeNormalMap")
-    nm.inputs["Strength"].default_value = 0.6
+    nm.inputs["Strength"].default_value = 0.3
     nt.links.new(tn.outputs["Color"], nm.inputs["Color"])
     nt.links.new(nm.outputs["Normal"], b.inputs["Normal"])
     b.inputs["Roughness"].default_value = rough

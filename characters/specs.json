@@ -3,13 +3,324 @@
     "label": "Vrati, ~40, yellow saree with red border, pallu over head",
     "role": "vrati",
     "height": 1.58,
-    "macros": { "gender": 0.0, "age": 0.62, "african": 0.18, "asian": 0.32, "caucasian": 0.5, "height": 0.4, "weight": 0.56, "muscle": 0.45, "proportions": 0.5 },
+    "macros": {
+      "gender": 0.0,
+      "age": 0.62,
+      "african": 0.18,
+      "asian": 0.32,
+      "caucasian": 0.5,
+      "height": 0.4,
+      "weight": 0.56,
+      "muscle": 0.45,
+      "proportions": 0.5
+    },
     "skin": "middleage_caucasian_female",
-    "skin_tint": [0.66, 0.47, 0.36],
+    "skin_tint": [
+      0.66,
+      0.47,
+      0.36
+    ],
     "hair": "braid01",
-    "hair_tint": [0.07, 0.05, 0.045],
+    "hair_tint": [
+      0.07,
+      0.05,
+      0.045
+    ],
     "outfit": "saree",
     "head_covered": true,
-    "colors": { "main": [0.93, 0.72, 0.2], "border": [0.7, 0.1, 0.12], "blouse": [0.7, 0.1, 0.12] }
+    "colors": {
+      "main": [
+        0.93,
+        0.72,
+        0.2
+      ],
+      "border": [
+        0.7,
+        0.1,
+        0.12
+      ],
+      "blouse": [
+        0.7,
+        0.1,
+        0.12
+      ]
+    }
+  },
+  "vrati_b": {
+    "label": "Vrati, ~30, saffron saree with yellow border",
+    "role": "vrati2",
+    "height": 1.55,
+    "macros": {
+      "gender": 0.0,
+      "age": 0.56,
+      "african": 0.18,
+      "asian": 0.32,
+      "caucasian": 0.5,
+      "muscle": 0.45,
+      "proportions": 0.5,
+      "height": 0.35,
+      "weight": 0.5
+    },
+    "skin": "young_caucasian_female",
+    "skin_tint": [
+      0.58,
+      0.4,
+      0.3
+    ],
+    "hair": "long01",
+    "outfit": "saree",
+    "head_covered": true,
+    "colors": {
+      "main": [
+        0.91,
+        0.47,
+        0.14
+      ],
+      "border": [
+        0.95,
+        0.75,
+        0.2
+      ],
+      "blouse": [
+        0.95,
+        0.75,
+        0.2
+      ],
+      "thread": [
+        0.7,
+        0.1,
+        0.12
+      ]
+    }
+  },
+  "vrati_c": {
+    "label": "Vrati, ~50, red saree with gold border",
+    "role": "vrati3",
+    "height": 1.56,
+    "macros": {
+      "gender": 0.0,
+      "age": 0.7,
+      "african": 0.18,
+      "asian": 0.32,
+      "caucasian": 0.5,
+      "muscle": 0.45,
+      "proportions": 0.5,
+      "height": 0.38,
+      "weight": 0.62
+    },
+    "skin": "middleage_caucasian_female",
+    "skin_tint": [
+      0.62,
+      0.44,
+      0.33
+    ],
+    "hair": "braid01",
+    "outfit": "saree",
+    "head_covered": true,
+    "colors": {
+      "main": [
+        0.78,
+        0.13,
+        0.12
+      ],
+      "border": [
+        0.88,
+        0.68,
+        0.22
+      ],
+      "blouse": [
+        0.88,
+        0.68,
+        0.22
+      ],
+      "thread": [
+        0.6,
+        0.08,
+        0.1
+      ]
+    }
+  },
+  "elder": {
+    "label": "Grandmother, ~68, maroon saree",
+    "role": "elder",
+    "height": 1.52,
+    "macros": {
+      "gender": 0.0,
+      "age": 0.83,
+      "african": 0.18,
+      "asian": 0.32,
+      "caucasian": 0.5,
+      "muscle": 0.45,
+      "proportions": 0.5,
+      "height": 0.3,
+      "weight": 0.5
+    },
+    "skin": "old_caucasian_female",
+    "skin_tint": [
+      0.6,
+      0.43,
+      0.33
+    ],
+    "hair": "braid01",
+    "hair_tint": [
+      0.58,
+      0.56,
+      0.53
+    ],
+    "outfit": "saree",
+    "head_covered": true,
+    "colors": {
+      "main": [
+        0.42,
+        0.11,
+        0.16
+      ],
+      "border": [
+        0.88,
+        0.68,
+        0.22
+      ],
+      "blouse": [
+        0.42,
+        0.11,
+        0.16
+      ],
+      "thread": [
+        0.95,
+        0.85,
+        0.6
+      ]
+    }
+  },
+  "man_dhoti": {
+    "label": "Man, ~45, dhoti-kurta with red gamchha (carries the daura)",
+    "role": "man",
+    "height": 1.7,
+    "macros": {
+      "gender": 1.0,
+      "age": 0.66,
+      "african": 0.18,
+      "asian": 0.32,
+      "caucasian": 0.5,
+      "height": 0.45,
+      "weight": 0.55,
+      "muscle": 0.5,
+      "proportions": 0.5
+    },
+    "skin": "middleage_caucasian_male",
+    "skin_tint": [
+      0.56,
+      0.38,
+      0.27
+    ],
+    "hair": "short02",
+    "eyebrows": "eyebrow005",
+    "outfit": "dhoti_kurta",
+    "colors": {
+      "main": [
+        0.93,
+        0.89,
+        0.78
+      ],
+      "dhoti": [
+        0.96,
+        0.95,
+        0.9
+      ],
+      "border": [
+        0.55,
+        0.12,
+        0.15
+      ],
+      "gamchha": [
+        0.72,
+        0.13,
+        0.14
+      ]
+    }
+  },
+  "young_man": {
+    "label": "Young man, ~25, saffron kurta, cream pyjama (pours the lota)",
+    "role": "youngman",
+    "height": 1.72,
+    "macros": {
+      "gender": 1.0,
+      "age": 0.53,
+      "african": 0.18,
+      "asian": 0.32,
+      "caucasian": 0.5,
+      "height": 0.5,
+      "weight": 0.48,
+      "muscle": 0.52,
+      "proportions": 0.5
+    },
+    "skin": "young_caucasian_male",
+    "skin_tint": [
+      0.6,
+      0.42,
+      0.3
+    ],
+    "hair": "short04",
+    "eyebrows": "eyebrow005",
+    "outfit": "kurta_pyjama",
+    "colors": {
+      "main": [
+        0.91,
+        0.5,
+        0.16
+      ],
+      "pyjama": [
+        0.94,
+        0.92,
+        0.85
+      ],
+      "border": [
+        0.94,
+        0.92,
+        0.85
+      ]
+    }
+  },
+  "child": {
+    "label": "Boy, ~10, blue kurta, cream pyjama",
+    "role": "child",
+    "height": 1.38,
+    "tri_budget": 15000,
+    "macros": {
+      "gender": 1.0,
+      "age": 0.18,
+      "african": 0.18,
+      "asian": 0.32,
+      "caucasian": 0.5,
+      "height": 0.5,
+      "weight": 0.5,
+      "muscle": 0.5,
+      "proportions": 0.5
+    },
+    "skin": "young_caucasian_male",
+    "skin_tint": [
+      0.62,
+      0.44,
+      0.32
+    ],
+    "hair": "short01",
+    "outfit": "kurta_pyjama",
+    "colors": {
+      "main": [
+        0.15,
+        0.42,
+        0.5
+      ],
+      "pyjama": [
+        0.94,
+        0.92,
+        0.85
+      ],
+      "border": [
+        0.94,
+        0.92,
+        0.85
+      ]
+    }
   }
 }
