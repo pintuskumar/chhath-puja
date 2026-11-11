@@ -135,6 +135,15 @@ if skin_mat:
     if "Specular IOR Level" in bsdf.inputs:
         bsdf.inputs["Specular IOR Level"].default_value = 0.3
 hair = next((o for o in keep if "hair" in o.name.lower() or S["hair"] in o.name), None)
+if hair and S.get("head_covered"):
+    hb = bmesh.new()
+    hb.from_mesh(hair.data)
+    eye_z = L["Head"].z + 0.06
+    front = [f for f in hb.faces if (hair.matrix_world @ f.calc_center_median()).y < -0.06 and (hair.matrix_world @ f.calc_center_median()).z < eye_z + 0.07]
+    bmesh.ops.delete(hb, geom=front, context="FACES")
+    hb.to_mesh(hair.data)
+    hb.free()
+    log("trimmed fringe faces:", len(front))
 if hair:
     tint_image_node(hair, S.get("hair_tint", [0.07, 0.05, 0.045]), f"{SPEC_ID}_hair")
 
@@ -302,7 +311,9 @@ def wrap_skirt(name, z_top, z_bottom, mat, border_mat, pleats=True, flare=0.04, 
             da = math.atan2(math.sin(a + math.pi / 2), math.cos(a + math.pi / 2))
             if pleats and abs(da) < 0.55 and t > 0.08:
                 pleat = 0.012 * min(1, t * 3) * (0.5 + 0.5 * math.cos(da * 22))
-            ring.append(bm.verts.new((cx + (rr_x + pleat) * math.cos(a), cy + (rr_y + pleat) * math.sin(a), z)))
+            fold = 0.006 * t * (math.sin(a * 9 + 0.7) + 0.5 * math.sin(a * 17 + 2.1))
+            hem = 0.008 * math.sin(a * 5) * (1 if r == rows else 0)
+            ring.append(bm.verts.new((cx + (rr_x + pleat + fold) * math.cos(a), cy + (rr_y + pleat + fold) * math.sin(a), z + hem)))
         rings.append(ring)
     bm.verts.ensure_lookup_table()
     for r in range(rows):
@@ -325,7 +336,7 @@ def wrap_skirt(name, z_top, z_bottom, mat, border_mat, pleats=True, flare=0.04, 
 # ───────────────────────── ribbon along the body (pallu / gamchha) ─────────────────────────
 
 
-def ribbon(name, path_pts, width, offset, mat, border_mat, samples=60, across=6, border_side=1, drop=None):
+def ribbon(name, path_pts, width, offset, mat, border_mat, samples=90, across=8, border_side=1, drop=None):
     """Strip following a polyline on the body surface. drop = list of free-hanging extra points."""
     pts = [Vector(p) for p in path_pts]
     # resample by arc length
@@ -358,49 +369,70 @@ def ribbon(name, path_pts, width, offset, mat, border_mat, samples=60, across=6,
             f = bm.faces.new((grid[i][k], grid[i][k + 1], grid[i + 1][k + 1], grid[i + 1][k]))
             edge = (k == across - 1) if border_side > 0 else (k == 0)
             f.material_index = 1 if edge else 0
+    for _ in range(4):
+        bmesh.ops.smooth_vert(bm, verts=bm.verts, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
     ob = new_obj(name, bm, [mat, border_mat])
     skin_from_body(ob, k=6)
     return ob
 
 
-def hood(name, offset, mat, border_mat):
-    """Pallu over the head: body head/neck shell, back & top only, flowing to the shoulders."""
-    gidx = [group_names.index(g) for g in ("mixamorig:Head", "mixamorig:Neck", "mixamorig:HeadTop_End") if g in group_names]
-    face_front_y = L["Head"].y - 0.035
+def hood(name, offset, mat, border_mat, open_deg=62, rows=28, segs=64):
+    """Pallu over the head as a smooth, loose drape: sits on the crown, frames the face
+    and falls over the shoulders and back. Generated (not a skull copy) → clean edges."""
+    head = body_slab(L["Head"].z, head_top_z, torso_only=False)
+    hx, hy = head[:, 0].mean(), head[:, 1].mean()
+    head_r = max(np.abs(head[:, 0] - hx).max(), np.abs(head[:, 1] - hy).max())
+    shoulders = body_slab(L["LeftArm"].z - 0.03, L["LeftArm"].z + 0.03, torso_only=False)
+    sh_r = np.abs(shoulders[:, 0] - hx).max() * 0.92
+    z_top, z_bot = head_top_z + offset, L["Spine2"].z - 0.02
+    z_crown = L["Head"].z + 0.06
     bm = bmesh.new()
-    bm.from_mesh(body.data)
-    bm.transform(body.matrix_world)
-    dl = bm.verts.layers.deform.verify()
-    kill = []
-    for f in bm.faces:
-        c = f.calc_center_median()
-        w = sum(sum(v[dl].get(g, 0.0) for g in gidx) for v in f.verts) / len(f.verts)
-        hairline = head_top_z - 0.055
-        is_face = c.y < face_front_y and c.z < hairline
-        if w < 0.35 or is_face or c.z < L["Neck"].z - 0.02:
-            kill.append(f)
-    bmesh.ops.delete(bm, geom=kill, context="FACES")
+    grid = []
+    open_a = math.radians(open_deg)
+    for r in range(rows + 1):
+        t = r / rows
+        z = z_top - (z_top - z_bot) * t
+        if z >= z_crown:  # dome over the crown
+            k = (z_top - z) / (z_top - z_crown)
+            rad = (head_r + offset) * math.sin(min(1.0, k) * math.pi / 2) ** 0.8
+        else:  # falls from the head, widening over the shoulders
+            k = (z_crown - z) / (z_crown - z_bot)
+            rad = (head_r + offset) + (sh_r + 0.03 - head_r - offset) * (k ** 1.4)
+        rad = max(rad, 0.004)
+        row = []
+        for sgi in range(segs + 1):
+            # angle measured from the front (−Y); leave the face open
+            u = sgi / segs
+            ang = open_a + (2 * math.pi - 2 * open_a) * u
+            # the opening narrows above the brow so the drape comes over the forehead
+            if z > head_top_z - 0.045:
+                ang = (ang - math.pi) * 1.0 + math.pi
+            x = hx + rad * math.sin(ang)
+            y = hy - rad * math.cos(ang)
+            row.append(bm.verts.new((x, y, z)))
+        grid.append(row)
+    for r in range(rows):
+        for sgi in range(segs):
+            f = bm.faces.new((grid[r][sgi], grid[r + 1][sgi], grid[r + 1][sgi + 1], grid[r][sgi + 1]))
+            f.material_index = 1 if sgi < 2 or sgi >= segs - 2 else 0
+    # close the crown so there is no hole on top
+    bmesh.ops.remove_doubles(bm, verts=grid[0], dist=0.006)
     bm.normal_update()
-    for v in bm.verts:
-        v.co += v.normal * offset
-        if v.co.z < L["Head"].z:  # fall outward over the neck like cloth
-            v.co.x *= 1.0 + (L["Head"].z - v.co.z) * 1.6
-            v.co.y += (L["Head"].z - v.co.z) * 0.25
-    # border = faces touching the open edge on the front half (frames the face)
-    for f in bm.faces:
-        on_edge = any(e.is_boundary for e in f.edges)
-        f.material_index = 1 if on_edge and f.calc_center_median().y < L["Head"].y + 0.02 else 0
-    # widen the border band by one ring
-    ring = {f for f in bm.faces if f.material_index == 1}
-    for f in list(ring):
-        for e in f.edges:
-            for g in e.link_faces:
-                if g.calc_center_median().y < L["Head"].y + 0.02:
-                    g.material_index = 1
-    bm.verts.layers.deform.remove(dl)
     ob = new_obj(name, bm, [mat, border_mat])
-    skin_from_body(ob)
+    skin_from_body(ob, k=6)
+    # everything above the neck follows the head only (no stretching from shoulders)
+    hg = ob.vertex_groups.get("mixamorig:Head")
+    for v in ob.data.vertices:
+        if (ob.matrix_world @ v.co).z > L["Neck"].z + 0.03:
+            for g in ob.vertex_groups:
+                g.remove([v.index])
+            hg.add([v.index], 1.0, "REPLACE")
     return ob
+
+
+def forehead_point(z):
+    hit, nrm, _, _ = bvh.ray_cast(Vector((0, -1.0, z)), Vector((0, 1, 0)))
+    return hit
 
 
 def dot(name, pos, radius, mat, bone="mixamorig:Head"):
@@ -409,6 +441,8 @@ def dot(name, pos, radius, mat, bone="mixamorig:Head"):
     for v in bm.verts:
         v.co = Vector((v.co.x, 0, v.co.y))
     loc, nrm, _, _ = bvh.find_nearest(Vector(pos))
+    if nrm is None:
+        nrm = Vector((0, -1, 0))
     rot = Vector((0, -1, 0)).rotation_difference(nrm)
     for v in bm.verts:
         v.co = loc + nrm * 0.0015 + rot @ v.co
@@ -449,10 +483,13 @@ if kind == "saree":
     ]
     garments.append(ribbon("pallu", path, 0.24, 0.016, main, border, border_side=1))
     if S.get("head_covered", True):
-        garments.append(hood("pallu_head", 0.03 if hair else 0.012, main, border))
+        garments.append(hood("pallu_head", 0.035, main, border))
     red = cloth_mat("sindoor", (0.72, 0.06, 0.08), rough=0.5, sheen=0)
     top = Vector((0, L["Head"].y - 0.04, head_top_z - 0.004))
-    garments.append(dot("bindi", (0, -0.4, head_top_z - 0.085), 0.0045, red))
+    fh = forehead_point(head_top_z - 0.072)
+    log("forehead", tuple(round(c, 3) for c in fh) if fh else None)
+    if fh:
+        garments.append(dot("bindi", fh, 0.0045, red))
     garments.append(dot("sindoor", top, 0.006, red))
 elif kind == "dhoti_kurta":
     kurta = cloth_mat("kurta", C["main"])
