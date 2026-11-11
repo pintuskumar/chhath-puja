@@ -81,7 +81,11 @@ jobs:
       - name: Generate rig test fixture (grey mannequin, CI only)
         run: python3 scripts/make-test-rig.py out/models/_fixture
       - name: Install Playwright
-        run: npm i --no-save --no-audit --no-fund playwright@1.49.1 && npx playwright install --with-deps chromium
+        # --with-deps apt-installs extra fonts; if the Ubuntu mirrors are unreachable, the runner
+        # image already has Chromium's libraries and the site self-hosts its fonts.
+        run: |
+          npm i --no-save --no-audit --no-fund playwright@1.49.1
+          npx playwright install --with-deps chromium || { echo "::warning::apt deps unavailable, installing browser only"; npx playwright install chromium; }
       - name: Serve & run
         run: |
           python3 -m http.server 4173 --directory out > /dev/null 2>&1 &
