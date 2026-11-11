@@ -15,6 +15,7 @@ permissions:
 jobs:
   generate:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       BLENDER: ${{ github.workspace }}/blender/blender
       CHAR_OUT: ${{ github.workspace }}/chars-out
@@ -44,24 +45,45 @@ jobs:
           grep -rn "def .*pack\|zipfile" mpfb2/src/mpfb/ui/*/*.py mpfb2/src/mpfb/services/assetservice.py | grep -i "zip\|pack" | head -20
 
       - name: Download MakeHuman system assets (CC0)
+        timeout-minutes: 15
         run: |
-          if [ ! -f mh_assets.zip ]; then
-            page=$(curl -fsSL https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html)
-            url=$(echo "$page" | grep -oE 'https?://[^"]+\.zip' | head -1)
-            echo "pack url: $url"
-            curl -fsSLo mh_assets.zip "$url"
+          set -u
+          if [ -s mh_assets.zip ] && unzip -tq mh_assets.zip >/dev/null 2>&1; then echo "cached"; exit 0; fi
+          rm -f mh_assets.zip
+          CURL="curl -fL --connect-timeout 20 --max-time 600 --retry 3 --retry-delay 5 -sS"
+          url=""
+          for page in https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html \
+                      http://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html; do
+            html=$($CURL --max-time 60 "$page" || true)
+            url=$(echo "$html" | grep -oE 'https?://[^"'"'"' ]+\.zip' | head -1)
+            [ -n "$url" ] && break
+          done
+          echo "pack url from page: ${url:-<none>}"
+          # Fallbacks: known direct locations of the system assets pack
+          for u in "$url" \
+                   https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip \
+                   https://download.tuxfamily.org/makehuman/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip; do
+            [ -z "$u" ] && continue
+            echo "trying $u"
+            if $CURL -o mh_assets.zip "$u" && unzip -tq mh_assets.zip >/dev/null 2>&1; then echo "OK $u"; break; fi
+            rm -f mh_assets.zip
+          done
+          if [ ! -s mh_assets.zip ]; then
+            echo "::warning::MakeHuman asset pack unavailable — continuing with MPFB's bundled base assets only (no skins/hair/clothes)."
+          else
+            ls -la mh_assets.zip && unzip -l mh_assets.zip | tail -1
           fi
-          ls -la mh_assets.zip
-          unzip -l mh_assets.zip | head -25
 
       - name: Install asset pack into MPFB user data
         run: |
           DATA=$($BLENDER --background --python-expr "import sys,importlib; m=[importlib.import_module(k) for k in list(sys.modules) if k.endswith('mpfb.services.locationservice')][0]; print('USERDATA='+m.LocationService.get_user_data())" 2>/dev/null | grep USERDATA= | cut -d= -f2)
           echo "user data: $DATA"
-          mkdir -p "$DATA" && unzip -qo mh_assets.zip -d "$DATA"
+          mkdir -p "$DATA"
+          [ -s mh_assets.zip ] && unzip -qo mh_assets.zip -d "$DATA" || echo "no asset pack to install"
           ls "$DATA" | head -30
 
       - name: Generate probe character
+        timeout-minutes: 15
         run: |
           mkdir -p "$CHAR_OUT"
           $BLENDER --background --python characters/blender/probe_human.py 2>&1 | grep -E "\[chhath\]|Error|Traceback|File \"" | head -120
