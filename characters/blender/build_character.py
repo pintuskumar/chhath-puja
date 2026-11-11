@@ -74,6 +74,17 @@ for o in list(bpy.data.objects):
 rig = root if root.type == "ARMATURE" else next(o for o in keep if o.type == "ARMATURE")
 log("rig", rig.name, "body", body.name, "children", [o.name for o in keep])
 
+# MPFB stores the body shape (age/height/ethnicity macros) as shape keys. Bake the mix into
+# the mesh so vertex coordinates = what is rendered (garments are built from these).
+for o in keep:
+    if o.type == "MESH" and o.data.shape_keys:
+        n = len(o.data.shape_keys.key_blocks)
+        with bpy.context.temp_override(object=o, active_object=o, selected_objects=[o]):
+            bpy.ops.object.shape_key_remove(all=True, apply_mix=True)
+        log(f"baked {n} shape keys on {o.name}")
+nose = max(body.data.vertices, key=lambda v: -(body.matrix_world @ v.co).y if (body.matrix_world @ v.co).z > 1.2 else -9)
+log("front check: most -Y vertex above 1.2 m at", tuple(round(c, 3) for c in body.matrix_world @ nose.co))
+
 
 def bone_head(name):
     return rig.matrix_world @ rig.data.bones["mixamorig:" + name].head_local
