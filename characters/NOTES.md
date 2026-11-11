@@ -3,7 +3,11 @@
 ## Status
 - [x] Headless Blender 4.2.9 + MPFB 2.0.18 + makehuman_system_assets (CC0) on GitHub Actions (cached)
 - [x] Probe: rigged Mixamo-skeleton woman GLB, 36k tris, eyes/teeth/brows/lashes
-- [ ] Round 1 (this): clothing + skin + hair for `vrati_a`, previews
+- [x] Round 1: clothing + skin + hair for `vrati_a`, previews in `docs/characters/` (5 build iterations)
+  - fixed: MPFB macro shape keys not baked (garments offset), hands measured as hips, bindi on nose,
+    fringe over eye, pallu snapping to arm, drapes tearing when arms raise
+  - open: head drape still reads as a stiff hood (straight front edges); skirt is a clean tube
+    without real drape; no fabric texture yet; GLB 13 MB / 50k tris (budget 3.5 MB / 25k)
 - [ ] Round 2: remaining people (vrati_b, vrati_c, elder, man_dhoti, young_man, child)
 - [ ] Round 3: decimate to budgets, clips (idle / walk / water idle / namaste / sit), integrate, before/after
 
