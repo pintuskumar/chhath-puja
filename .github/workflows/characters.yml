@@ -1,0 +1,58 @@
+name: Generate characters (MakeHuman / MPFB)
+
+# Builds CC0 MakeHuman characters headlessly in Blender + MPFB, exports rigged GLBs,
+# optimises & validates them, and uploads them as an artifact (and, on dispatch with
+# commit=true, commits them to public/models).
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "probe | build"
+        default: probe
+      commit:
+        description: "commit generated models to the branch"
+        default: "false"
+  push:
+    paths:
+      - ".github/workflows/characters.yml"
+      - "characters/**"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    if: github.event_name == 'push' || inputs.stage == 'probe'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Blender
+        run: |
+          set -x
+          for v in 4.2.9 4.2.8 4.2.5 4.2.3 4.2.0; do
+            if curl -fsSLo blender.tar.xz https://download.blender.org/release/Blender4.2/blender-$v-linux-x64.tar.xz; then echo "got $v"; break; fi
+          done
+          tar xf blender.tar.xz && mv blender-*-linux-x64 blender
+          sudo apt-get update -qq && sudo apt-get install -y -qq libxi6 libxkbcommon0 libxxf86vm1 libgl1 libegl1 libsm6 >/dev/null
+          ./blender/blender --version
+      - name: MPFB source
+        run: |
+          git clone --depth 1 https://github.com/makehumancommunity/mpfb2.git
+          cd mpfb2 && git log -1 --format='%H %cd' && ls && ls src/mpfb | head -50
+          cat src/mpfb/blender_manifest.toml 2>/dev/null | head -30
+          ls script_samples || true
+          for f in script_samples/*.md script_samples/*.py; do echo "===== $f"; head -c 6000 "$f"; done 2>/dev/null | head -700
+      - name: Asset pack locations
+        run: |
+          cd mpfb2
+          grep -rhoE "https?://[^\"' )]+(zip|asset[^\"' )]*)" src docs 2>/dev/null | sort -u | head -40
+          grep -rn "system_assets\|makehuman_system_assets" src | head -20
+          ls src/mpfb/data | head -40
+      - name: Services API overview
+        run: |
+          cd mpfb2/src/mpfb/services
+          ls
+          grep -n "def " humanservice.py | head -80
+          grep -n "def " rigservice.py | head -40 || true
+          grep -n "def " assetservice.py | head -40 || true
+          grep -n "def " targetservice.py | head -60 || true
+          grep -n "def " materialservice.py | head -40 || true
