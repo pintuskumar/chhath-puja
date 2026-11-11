@@ -348,6 +348,30 @@ def body_shell(name, groups, z_min, z_max, offset, mat, sleeve_z_min=None, exclu
         if not ok:
             kill.append(f)
     bmesh.ops.delete(bm, geom=kill, context="FACES")
+    # drop small disconnected fragments (e.g. slivers left around the wrists)
+    seen, comps = set(), []
+    for f0 in bm.faces:
+        if f0 in seen:
+            continue
+        stack, comp = [f0], []
+        seen.add(f0)
+        while stack:
+            f = stack.pop()
+            comp.append(f)
+            for e in f.edges:
+                for g in e.link_faces:
+                    if g not in seen:
+                        seen.add(g)
+                        stack.append(g)
+        comps.append(comp)
+    if comps:
+        big = max(len(c) for c in comps)
+        small = [f for c in comps if len(c) < 0.1 * big for f in c]
+        if small:
+            bmesh.ops.delete(bm, geom=small, context="FACES")
+        log(f"{name}: kept {sum(len(c) >= 0.1 * big for c in comps)} part(s), dropped {len(small)} stray faces")
+    loose = [v for v in bm.verts if not v.link_faces]
+    bmesh.ops.delete(bm, geom=loose, context="VERTS")
     bm.normal_update()
     for v in bm.verts:
         v.co += v.normal * offset
@@ -362,7 +386,7 @@ TORSO = ["mixamorig:Spine", "mixamorig:Spine1", "mixamorig:Spine2", "mixamorig:L
 # ───────────────────────── wrapped lower garment (saree / dhoti / petticoat) ─────────────────────────
 
 
-def wrap_skirt(name, z_top, z_bottom, mat, border_mat, pleats=True, flare=0.05, ease=0.012, rows=22, segs=72):
+def wrap_skirt(name, z_top, z_bottom, mat, border_mat, pleats=True, flare=0.05, ease=0.012, rows=22, segs=72, ease_top=None):
     bm = bmesh.new()
     rings = []
     hip_slab = body_slab(L["Hips"].z - 0.12, L["Hips"].z + 0.02)
@@ -384,13 +408,15 @@ def wrap_skirt(name, z_top, z_bottom, mat, border_mat, pleats=True, flare=0.05, 
         for s in range(segs):
             a = 2 * math.pi * s / segs
             fl = flare * t
-            rr_x, rr_y = rx + ease + fl, ry + ease + fl
+            # snug at the waistband, loosening as it falls (no visible rim/ledge at the top)
+            e = ease if ease_top is None else ease_top + (ease - ease_top) * min(1.0, t / 0.3)
+            rr_x, rr_y = rx + e + fl, ry + e + fl
             pleat = 0.0
             # front pleats: character faces −Y → front is a ≈ −π/2
             da = math.atan2(math.sin(a + math.pi / 2), math.cos(a + math.pi / 2))
             if pleats and abs(da) < 0.55 and t > 0.08:
                 pleat = 0.012 * min(1, t * 3) * (0.5 + 0.5 * math.cos(da * 22))
-            fold = (0.004 + 0.012 * t * t) * (math.sin(a * 9 + 0.7) + 0.55 * math.sin(a * 17 + 2.1) + 0.3 * math.sin(a * 31))
+            fold = (0.004 * min(1.0, t / 0.15) + 0.012 * t * t) * (math.sin(a * 9 + 0.7) + 0.55 * math.sin(a * 17 + 2.1) + 0.3 * math.sin(a * 31))
             hem = (0.01 * math.sin(a * 5) + (0.012 if (pleats and abs(da) < 0.55) else 0)) * (1 if r == rows else 0)
             ring.append(bm.verts.new((cx + (rr_x + pleat + fold) * math.cos(a), cy + (rr_y + pleat + fold) * math.sin(a), z + hem)))
         rings.append(ring)
@@ -563,7 +589,7 @@ kind = S["outfit"]
 if kind == "saree":
     blouse = cloth_mat("blouse", C.get("blouse", C["border"]), rough=0.8)
     garments.append(body_shell("blouse", TORSO, L["Spine"].z + 0.02, neck_z - 0.02, 0.004, blouse, sleeve_z_min=L["LeftArm"].z - 0.16))
-    garments.append(wrap_skirt("saree_skirt", hips_z + 0.06, foot_z + 0.025, main, border))
+    garments.append(wrap_skirt("saree_skirt", hips_z + 0.06, foot_z + 0.025, main, border, ease_top=0.004))
     # pallu: right waist → across chest → over left shoulder → down the back
     lx = shoulder_l.x + 0.02
     path = [
@@ -595,10 +621,10 @@ elif kind in ("dhoti_kurta", "kurta_pyjama"):
     knee_z = L["LeftLeg"].z
     # sits clearly outside the dhoti/pyjama (their pleats/folds used to poke through)
     hem_ease = 0.065 if kind == "dhoti_kurta" else 0.045
-    garments.append(wrap_skirt("kurta_hem", hips_z + 0.02, knee_z + 0.08, kurta, kurta, pleats=False, flare=0.03, ease=hem_ease))
+    garments.append(wrap_skirt("kurta_hem", hips_z + 0.02, knee_z + 0.08, kurta, kurta, pleats=False, flare=0.03, ease=hem_ease, ease_top=0.006))
     if kind == "dhoti_kurta":
         dhoti = cloth_mat("dhoti", C.get("dhoti", (0.95, 0.93, 0.86)))
-        garments.append(wrap_skirt("dhoti", hips_z - 0.02, foot_z + 0.16, dhoti, border, pleats=True, flare=0.02, ease=0.03))
+        garments.append(wrap_skirt("dhoti", hips_z - 0.02, foot_z + 0.16, dhoti, border, pleats=True, flare=0.02, ease=0.03, ease_top=0.008))
         if C.get("gamchha"):
             g = cloth_mat("gamchha", C["gamchha"], rough=0.8, stripe=(0.95, 0.93, 0.86))
             # gamchha over the left shoulder (on the trapezius, not out on the arm),
