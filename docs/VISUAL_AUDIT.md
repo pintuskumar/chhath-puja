@@ -120,7 +120,7 @@ The existing hotspots, panels, scroll story, controls, language, audio and progr
 | Export guide for you: [METAHUMAN_GUIDE.md](METAHUMAN_GUIDE.md) | ✅ |
 | `vrati_a.glb` + core clips (MetaHuman, saree, mocap) | ⏳ **waiting on you** |
 | Foot IK on steps, wet-saree material | ✅ shipped (see §8) |
-| Hand IK (per-finger grip) | ✅ soop and lota (`grips.ts`: arm IK + palm orientation + finger curl, after the mixer); other props: sockets |
+| Hand IK (per-finger grip) | ✅ soop, lota, daura, diya (`grips.ts`: arm IK + palm orientation + per-joint contact wrap, after the mixer); broom, ladle, cane, thekua: sockets |
 | Before/after Sandhya Arghya with identical cameras | ✅ §8 |
 
 ## 8. Result: the MakeHuman / MPFB route (shipped)
@@ -169,4 +169,4 @@ Clips: `idle_stand, walk_barefoot, walk_steps_down, carry_daura_walk, carry_daur
   * **Skin pores.** A tiled pore normal map makes the skin less plastic.
   * **Brown eyes with a highlight.** The irises are warm brown and the cornea is glossy, so the eyes catch the light.
   * **Still not photoreal.** The hair is still a solid shell, and up close they look like good game characters. Close-ups therefore show real photographs (`src/content/photos.ts`).
-* Grips are approximate: one curl hinge per hand, no finger collision; only the soop and lota are solved (other props use sockets). Close-ups for review: `grip-*.png` in the smoke-test artifacts.
+* Grips are approximate: fingers stop on a simple stand-in shape of each prop, not its real mesh; broom, ladle, cane and thekua still use sockets. Close-ups for review: `grip-*.png` in the smoke-test artifacts.
