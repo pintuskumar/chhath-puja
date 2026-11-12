@@ -142,7 +142,14 @@ for (const [vpName, viewport] of [
 
   // Close-up view → real photograph of the moment (src/content/photos.ts), loaded and credited
   try {
-    await page.getByRole("button", { name: "नज़दीक से" }).first().click({ timeout: 10000 });
+    // click like a tap on the visible button: Playwright's own click scrolls the page first,
+    // which on the scroll-driven story moves to the next scene
+    const tapped = await page.evaluate(() => {
+      const b = [...document.querySelectorAll('[role="toolbar"] button')].find((e) => e.getAttribute("aria-label") === "नज़दीक से");
+      b?.click();
+      return !!b;
+    });
+    if (!tapped) throw new Error("no close-up button on the arghya scene");
     const ok = await page
       .waitForFunction(() => {
         const img = document.querySelector('[data-testid="photo-closeup"] img');
@@ -160,8 +167,12 @@ for (const [vpName, viewport] of [
         .map((e) => `${e.tagName.toLowerCase()}.${String(e.className).split(" ").slice(0, 3).join(".")} scrollLeft=${e.scrollLeft}`),
     );
     if (shifted.length) console.log(`${vpName} horizontally scrolled after close-up click:`, shifted);
+    const still = await page.locator('[data-testid="photo-closeup"]').count();
+    if (!still) errors.push(`[${vpName}] close-up photo disappeared before the screenshot`);
     await shot(page, `${vpName}-sandhya-arghya-photo-closeup`);
-    await page.getByRole("button", { name: "पूरा दृश्य" }).first().click({ timeout: 10000 });
+    await page.evaluate(() =>
+      [...document.querySelectorAll('[role="toolbar"] button')].find((e) => e.getAttribute("aria-label") === "पूरा दृश्य")?.click(),
+    );
     await wait(800);
   } catch (e) {
     errors.push(`[${vpName}] close-up photo check failed: ${e.message.split("\n")[0]}`);
