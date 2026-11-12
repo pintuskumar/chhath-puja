@@ -18,6 +18,8 @@ import { mat } from "../materials";
 import { GHAT, type ActorState, type HoldId } from "../choreography";
 import { clipCandidates, LOCOMOTION, normalizeClipName, type ClipName } from "./clipMap";
 import { modelUrl, type CharacterSpec, type ModelManifest, type PropOffset } from "./manifest";
+import { ik, solveTwoBone, type Limb } from "./ik";
+import { applyGrips, findHands, newGripState, type Frame, type GripState } from "./grips";
 
 const RIGHT_GRIP = ["hand_r_grip", "hand_r", "mixamorigRightHand", "RightHand"];
 const LEFT_GRIP = ["hand_l_grip", "hand_l", "mixamorigLeftHand", "LeftHand"];
@@ -26,70 +28,6 @@ const LEGS = {
   l: [["mixamorigLeftUpLeg", "thigh_l"], ["mixamorigLeftLeg", "calf_l"], ["mixamorigLeftFoot", "foot_l"]],
   r: [["mixamorigRightUpLeg", "thigh_r"], ["mixamorigRightLeg", "calf_r"], ["mixamorigRightFoot", "foot_r"]],
 } as const;
-
-interface Leg {
-  hip: THREE.Object3D;
-  knee: THREE.Object3D;
-  foot: THREE.Object3D;
-}
-
-const ik = {
-  a: new THREE.Vector3(),
-  b: new THREE.Vector3(),
-  c: new THREE.Vector3(),
-  t: new THREE.Vector3(),
-  u: new THREE.Vector3(),
-  n: new THREE.Vector3(),
-  p: new THREE.Vector3(),
-  e: new THREE.Vector3(),
-  v1: new THREE.Vector3(),
-  v2: new THREE.Vector3(),
-  q: new THREE.Quaternion(),
-  qa: new THREE.Quaternion(),
-  qb: new THREE.Quaternion(),
-  foot: new THREE.Quaternion(),
-};
-
-/** Apply a world-space rotation to a bone (children follow). */
-function rotateWorld(bone: THREE.Object3D, q: THREE.Quaternion) {
-  bone.getWorldQuaternion(ik.qa);
-  ik.qa.premultiply(q);
-  bone.parent!.getWorldQuaternion(ik.qb);
-  bone.quaternion.copy(ik.qb.invert().multiply(ik.qa));
-  bone.updateMatrixWorld(true);
-}
-
-/**
- * Analytic two-bone IK: move the ankle to `target` (world), keeping the knee in its current
- * bend plane and the foot's world orientation (so it lands flat on the step).
- */
-function solveLeg(leg: Leg, target: THREE.Vector3, sideAxis: THREE.Vector3) {
-  const { a, b, c, u, n, p, e, v1, v2, q } = ik;
-  leg.hip.getWorldPosition(a);
-  leg.knee.getWorldPosition(b);
-  leg.foot.getWorldPosition(c);
-  leg.foot.getWorldQuaternion(ik.foot);
-  const l1 = a.distanceTo(b);
-  const l2 = b.distanceTo(c);
-  const d = THREE.MathUtils.clamp(a.distanceTo(target), Math.abs(l1 - l2) + 1e-4, (l1 + l2) * 0.999);
-  u.subVectors(target, a).normalize();
-  n.crossVectors(v1.subVectors(b, a), v2.subVectors(c, a));
-  if (n.lengthSq() < 1e-10) n.copy(sideAxis);
-  n.normalize();
-  p.crossVectors(n, u).normalize();
-  if (p.dot(v1.subVectors(b, a)) < 0) p.negate(); // keep the knee pointing the same way
-  const cosA = (l1 * l1 + d * d - l2 * l2) / (2 * l1 * d);
-  const sinA = Math.sqrt(Math.max(0, 1 - cosA * cosA));
-  e.copy(a).addScaledVector(u, l1 * cosA).addScaledVector(p, l1 * sinA);
-  rotateWorld(leg.hip, q.setFromUnitVectors(v1.subVectors(b, a).normalize(), v2.subVectors(e, a).normalize()));
-  leg.knee.getWorldPosition(b);
-  leg.foot.getWorldPosition(c);
-  const end = v2.copy(a).addScaledVector(u, d);
-  rotateWorld(leg.knee, q.setFromUnitVectors(v1.subVectors(c, b).normalize(), end.sub(b).normalize()));
-  leg.foot.parent!.getWorldQuaternion(ik.qb);
-  leg.foot.quaternion.copy(ik.qb.invert().multiply(ik.foot));
-  leg.foot.updateMatrixWorld(true);
-}
 
 /** Default attachment bone per held item. */
 const HOLD_BONE: Record<Exclude<HoldId, "none">, "right" | "left" | "head" | "both"> = {
@@ -330,6 +268,7 @@ function BothHandsSocket({
   root,
   afterMix,
   offset,
+  frame,
   children,
 }: {
   left: THREE.Object3D;
@@ -337,6 +276,8 @@ function BothHandsSocket({
   root: { current: THREE.Group | null };
   afterMix: Set<() => void>;
   offset?: PropOffset;
+  /** basket frame solved by applyGrips (root-local); used instead of the hand midpoint when ok */
+  frame?: Frame;
   children: ReactNode;
 }) {
   const g = useRef<THREE.Group>(null);
@@ -349,6 +290,12 @@ function BothHandsSocket({
       const n = g.current;
       const base = root.current;
       if (!n || !base) return;
+      // hands placed on the basket by applyGrips this frame → use that basket frame
+      if (frame?.ok) {
+        n.position.copy(frame.p);
+        n.quaternion.copy(frame.q);
+        return;
+      }
       left.getWorldPosition(t.l);
       right.getWorldPosition(t.r);
       base.worldToLocal(t.l);
@@ -364,7 +311,29 @@ function BothHandsSocket({
     // runs right after the mixer has posed the skeleton (same frame, no lag)
     afterMix.add(update);
     return () => void afterMix.delete(update);
-  }, [afterMix, left, right, root, t]);
+  }, [afterMix, left, right, root, t, frame]);
+  return (
+    <group ref={g}>
+      <group position={offset?.position ?? [0, 0, 0]} rotation={offset?.rotation ?? [0, 0, 0]}>
+        {children}
+      </group>
+    </group>
+  );
+}
+
+/** Root-space socket placed from a Frame written by applyGrips (lota in the fist). */
+function FrameSocket({ frame, afterMix, offset, children }: { frame: Frame; afterMix: Set<() => void>; offset?: PropOffset; children: ReactNode }) {
+  const g = useRef<THREE.Group>(null);
+  useEffect(() => {
+    const update = () => {
+      const n = g.current;
+      if (!n || !frame.ok) return;
+      n.position.copy(frame.p);
+      n.quaternion.copy(frame.q);
+    };
+    afterMix.add(update);
+    return () => void afterMix.delete(update);
+  }, [afterMix, frame]);
   return (
     <group ref={g}>
       <group position={offset?.position ?? [0, 0, 0]} rotation={offset?.rotation ?? [0, 0, 0]}>
@@ -458,7 +427,7 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality, ground }:
     [model],
   );
   const legs = useMemo(() => {
-    const out: Leg[] = [];
+    const out: Limb[] = [];
     for (const names of [LEGS.l, LEGS.r]) {
       const [hip, knee, foot] = names.map((n) => findBone(model, [...n]));
       if (hip && knee && foot) out.push({ hip, knee, foot });
@@ -468,6 +437,11 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality, ground }:
   const footBase = useRef<number | null>(null);
   const prevTargetY = useRef<number | null>(null);
   const fk = useMemo(() => ({ w: new THREE.Vector3(), side: new THREE.Vector3(), gy: [0, 0] }), []);
+
+  // finger-level grips (MPFB skeleton); null on rigs without finger bones → plain sockets
+  const hands = useMemo(() => findHands(model), [model]);
+  const grip = useMemo<GripState>(() => newGripState(), []);
+  const fall = useRef<THREE.Mesh>(null);
 
   const root = useRef<THREE.Group>(null);
   const afterMix = useMemo(() => new Set<() => void>(), []);
@@ -544,14 +518,23 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality, ground }:
         if (lift > 0.01) {
           legs[i].foot.getWorldPosition(ik.t);
           ik.t.y += lift;
-          solveLeg(legs[i], ik.t, fk.side);
+          solveTwoBone(legs[i], ik.t, fk.side);
         }
       }
     }
+    if (hands) applyGrips(grip, hands, s, g, reduced ? 1 : delta, WATER_Y);
     for (const f of afterMix) f();
 
     for (const [h, node] of Object.entries(holds.current)) if (node) node.visible = h === s.hold;
-    if (stream.current) stream.current.visible = !!s.stream;
+    if (stream.current) stream.current.visible = !!s.stream && !hands;
+    if (fall.current) {
+      const st = grip.stream;
+      fall.current.visible = !!s.stream && st.ok;
+      if (st.ok) {
+        fall.current.position.set(st.p.x, st.p.y - st.len / 2, st.p.z);
+        fall.current.scale.set(1, st.len, 1);
+      }
+    }
     publishGrips(s, g, bones);
   });
 
@@ -560,6 +543,12 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality, ground }:
       <group rotation={[0, yaw, 0]} position={[0, lift, 0]} scale={scale}>
         <primitive object={model} />
       </group>
+      {hands && (
+        // arghya stream: from the lota's lip straight down to the river (unit height, scaled)
+        <mesh ref={fall} material={streamMat} visible={false}>
+          <cylinderGeometry args={[0.011, 0.006, 1, 8, 1, true]} />
+        </mesh>
+      )}
       {(Object.keys(HOLD_BONE) as Exclude<HoldId, "none">[]).map((h) => {
         const offset = spec.props?.[h];
         const where = HOLD_BONE[h];
@@ -571,9 +560,16 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality, ground }:
         if (where === "both" && !offset?.bone) {
           if (!bones.left || !bones.right) return null;
           return (
-            <BothHandsSocket key={h} left={bones.left} right={bones.right} root={root} afterMix={afterMix} offset={offset}>
+            <BothHandsSocket key={h} left={bones.left} right={bones.right} root={root} afterMix={afterMix} offset={offset} frame={hands ? grip.soop : undefined}>
               {content}
             </BothHandsSocket>
+          );
+        }
+        if (h === "lota" && hands && !offset?.bone) {
+          return (
+            <FrameSocket key={h} frame={grip.lota} afterMix={afterMix} offset={offset}>
+              {content}
+            </FrameSocket>
           );
         }
         const bone = (offset?.bone && model.getObjectByName(offset.bone)) || (where === "both" ? bones.right : bones[where]);
