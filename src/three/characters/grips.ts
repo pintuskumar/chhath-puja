@@ -6,6 +6,8 @@
  *  - lota: fingers and thumb close round the neck until they touch it (contact wrap); the pot hangs upright when carried and tilts with
  *    the wrist when pouring; the other palm supports its base while pouring; the stream
  *    falls from the lowest point of the lip straight down to the water.
+ *  - daura (on the head): palms flat on the outside of the basket wall, fingers curl over the rim.
+ *  - diya: resting on the upturned right palm, flame upright, fingers cupped round the bowl.
  * Works on the MPFB "mixamo" skeleton (finger bones `mixamorig{Side}Hand{Finger}{1..3}`).
  * Rigs without finger bones (the CI mannequin) get null from findHands → old sockets.
  * Prop dimensions match src/three/props.tsx (Soop 0.6 × 0.5 m, Lota neck r 0.04 at y 0.15).
@@ -41,6 +43,7 @@ export interface Frame {
 export interface GripState {
   soop: Frame;
   lota: Frame;
+  diya: Frame;
   stream: { ok: boolean; p: THREE.Vector3; len: number };
   /** 0 = lota hangs upright (carried), 1 = follows the wrist (pouring / filling) */
   lotaTilt: number;
@@ -49,6 +52,7 @@ export interface GripState {
 export const newGripState = (): GripState => ({
   soop: { ok: false, p: new THREE.Vector3(), q: new THREE.Quaternion() },
   lota: { ok: false, p: new THREE.Vector3(), q: new THREE.Quaternion() },
+  diya: { ok: false, p: new THREE.Vector3(), q: new THREE.Quaternion() },
   stream: { ok: false, p: new THREE.Vector3(), len: 0 },
   lotaTilt: 0,
 });
@@ -229,6 +233,21 @@ export const lotaSdf: Sdf = (p) => {
   return Math.max(Math.hypot(p.x, p.z) - lotaRadius(h), -p.y, p.y - 0.18);
 };
 
+// Daura (props.tsx, held at scale 0.8): bamboo wall from r 0.256 (bottom) to 0.336 (rim) over
+// 0.256 m, rim ring at the top, cloth dome over it. Origin = centre of the base.
+const DAURA_H = 0.256;
+const DAURA_R0 = 0.256;
+const DAURA_R1 = 0.336;
+const dauraRadius = (y: number) => DAURA_R0 + ((DAURA_R1 - DAURA_R0) * Math.min(Math.max(y, 0), DAURA_H)) / DAURA_H;
+/** Solid daura (wall + cloth on top), so fingertips stop on the wall and curl over the rim. */
+export const dauraSdf: Sdf = (p) => Math.max(Math.hypot(p.x, p.z) - dauraRadius(p.y), -p.y, p.y - (DAURA_H + 0.02));
+
+// Diya (props.tsx): clay bowl, base r 0.05 at y 0, rim r 0.09 at y 0.045.
+export const diyaSdf: Sdf = (p) => {
+  const y = Math.min(Math.max(p.y, 0), 0.05);
+  return Math.max(Math.hypot(p.x, p.z) - (0.05 + (0.04 * y) / 0.05), -p.y, p.y - 0.05);
+};
+
 /** Far end of joint j of a finger chain: next joint's head, or the estimated fingertip. */
 function endOf(chain: THREE.Object3D[], j: number, out: THREE.Vector3) {
   if (j < chain.length - 1) return chain[j + 1].getWorldPosition(out);
@@ -333,9 +352,19 @@ const LOTA_LIP_R = 0.052;
  * read `state`). `root` is the actor group (world matrix up to date). `waterY` is the river
  * surface in the root's parent space.
  */
-export function applyGrips(state: GripState, hands: Hands, s: ActorState, root: THREE.Object3D, delta: number, waterY: number) {
+export function applyGrips(
+  state: GripState,
+  hands: Hands,
+  s: ActorState,
+  root: THREE.Object3D,
+  delta: number,
+  waterY: number,
+  /** the daura's socket group on the head (world matrix up to date), when carried */
+  daura?: THREE.Object3D | null,
+) {
   state.soop.ok = false;
   state.lota.ok = false;
+  state.diya.ok = false;
   state.stream.ok = false;
   const { o, x, y, z } = T;
 
@@ -349,7 +378,6 @@ export function applyGrips(state: GripState, hands: Hands, s: ActorState, root: 
       y.copy(UP).addScaledVector(x, -x.y);
       if (!unit(y)) y.copy(UP);
       z.crossVectors(x, y);
-      setPropMatrix(o, x, y, z);
       for (const [h, sgn] of [
         [hands.l, 1],
         [hands.r, -1],
@@ -357,10 +385,18 @@ export function applyGrips(state: GripState, hands: Hands, s: ActorState, root: 
         const tgt = new THREE.Vector3().copy(o).addScaledVector(x, sgn * SOOP_HAND_X).addScaledVector(y, -PALM).addScaledVector(z, SOOP_HAND_Z);
         // palm up, fingers forward and a little outwards along the side edge
         const fw = new THREE.Vector3().copy(z).addScaledVector(x, sgn * 0.3).normalize();
-        if (!placeHand(h, tgt, fw, y)) continue;
-        // fingers lie flat against the underside (and curl up round the edge where they pass it)
-        wrapHand(h, propM, soopSdf);
+        placeHand(h, tgt, fw, y);
       }
+      // a raised soop can be just out of reach: rest the basket on where the palms actually are
+      hands.l.grip.getWorldPosition(gl);
+      hands.r.grip.getWorldPosition(gr);
+      if (Number.isFinite(gl.x + gl.y + gl.z + gr.x + gr.y + gr.z)) {
+        o.addVectors(gl, gr).multiplyScalar(0.5).addScaledVector(y, PALM).addScaledVector(z, -SOOP_HAND_Z);
+      }
+      setPropMatrix(o, x, y, z);
+      // fingers lie flat against the underside (and curl up round the edge where they pass it)
+      wrapHand(hands.l, propM, soopSdf);
+      wrapHand(hands.r, propM, soopSdf);
       toLocal(root, state.soop, o, x, y, z);
     }
   }
@@ -408,6 +444,64 @@ export function applyGrips(state: GripState, hands: Hands, s: ActorState, root: 
       state.stream.p.copy(lip);
       state.stream.len = Math.max(0, lip.y - waterLocal);
       state.stream.ok = state.stream.len > 0.05 && state.stream.len < 5 && Number.isFinite(lip.x + lip.y + lip.z);
+    }
+  }
+
+  if (s.hold === "daura" && daura && (s.pose === "carry-head" || s.pose === "walk")) {
+    // palms flat on the outside of the basket wall, fingers up, curling over the rim
+    const D = daura.matrixWorld; // head socket: metre scale, follows the head
+    o.setFromMatrixPosition(D);
+    x.setFromMatrixColumn(D, 0);
+    y.setFromMatrixColumn(D, 1);
+    z.setFromMatrixColumn(D, 2);
+    if (unit(x) && unit(y) && unit(z)) {
+      propM.makeBasis(x, y, z).setPosition(o);
+      // which way is "left" for this actor: from the clip's hands, across the basket axis
+      const gl = hands.l.grip.getWorldPosition(new THREE.Vector3());
+      const gr = hands.r.grip.getWorldPosition(T.p2);
+      const side = new THREE.Vector3().subVectors(gl, gr).addScaledVector(y, -gl.clone().sub(gr).dot(y));
+      if (unit(side)) {
+        for (const [h, sgn] of [
+          [hands.l, 1],
+          [hands.r, -1],
+        ] as const) {
+          const out = new THREE.Vector3().copy(side).multiplyScalar(sgn);
+          const hgt = DAURA_H * 0.45;
+          const tgt = new THREE.Vector3().copy(o).addScaledVector(y, hgt).addScaledVector(out, dauraRadius(hgt) + PALM);
+          // fingers up the wall (tilted with its flare), palm facing the basket
+          const fw = new THREE.Vector3().copy(y).addScaledVector(out, (DAURA_R1 - DAURA_R0) / DAURA_H);
+          if (unit(fw) && placeHand(h, tgt, fw, out.negate())) wrapHand(h, propM, dauraSdf);
+        }
+      }
+    }
+  }
+
+  if (s.hold === "diya") {
+    // diya resting on the right palm, palm up, flame upright
+    const h = hands.r;
+    const fwd = new THREE.Vector3(0, 0, 1).transformDirection(root.matrixWorld);
+    fwd.y = 0;
+    if (unit(fwd)) {
+      if (s.pose === "offer" || s.pose === "give") {
+        // the offering clip already holds the hand out: just turn the palm to face the sky
+        orientHand(h, fwd, UP);
+      } else {
+        // otherwise bring the hand up in front of the chest (scaled to this actor's arm)
+        const sh = h.upper.getWorldPosition(new THREE.Vector3());
+        const el = h.fore.getWorldPosition(new THREE.Vector3());
+        const wr = h.hand.getWorldPosition(new THREE.Vector3());
+        const L = sh.distanceTo(el) + el.distanceTo(wr);
+        const inward = new THREE.Vector3(0, 1, 0).cross(fwd); // actor's left
+        const tgt = sh.addScaledVector(fwd, 0.6 * L).addScaledVector(UP, -0.45 * L).addScaledVector(inward, 0.12 * L);
+        placeHand(h, tgt, fwd, UP);
+      }
+      h.grip.getWorldPosition(o).addScaledVector(UP, PALM);
+      y.copy(UP);
+      z.copy(fwd);
+      x.crossVectors(y, z);
+      toLocal(root, state.diya, o, x, y, z);
+      setPropMatrix(o, x, y, z);
+      wrapHand(h, propM, diyaSdf); // fingers cup round the bowl
     }
   }
 }

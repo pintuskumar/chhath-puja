@@ -283,6 +283,19 @@ for (const [vpName, viewport] of [
       await frame("youngman", "grip-lota-front", { dist: 0.6, side: 0.25, up: 0.1 });
       await frame("youngman", "grip-lota-side", { dist: 0.2, side: 0.6, up: 0.15 });
       await frame("youngman", "grip-lota-close", { dist: 0.32, side: 0.12, up: 0.05 });
+      // other scenes: reload so the page opens on that scene (hash deep link is read on mount)
+      const openScene = async (hash) => {
+        await gs.page.goto(`${BASE}/day/sandhya-arghya/#${hash}`, { waitUntil: "networkidle", timeout: 90000 });
+        await gs.page.reload({ waitUntil: "networkidle", timeout: 90000 });
+        await gs.page.addStyleTag({ content: "header,[data-reveal],[role=toolbar],[data-testid=photo-credit]{visibility:hidden!important}" });
+        await wait(6000);
+      };
+      await openScene("ghat-ki-or"); // the man carries the daura on his head
+      await frame("man", "grip-daura", { dist: 0.9, side: 0.4, up: 0.05 });
+      await openScene("ghat-par-taiyari"); // the elder offers a diya
+      await frame("elder", "grip-diya-offer", { dist: 0.45, side: 0.25, up: 0.12 });
+      await openScene("sandhya-samapan"); // the child holds a diya
+      await frame("child", "grip-diya-child", { dist: 0.45, side: 0.2, up: 0.12 });
     } catch (e) {
       errors.push(`[grip] close-ups failed: ${e.message.split("\n")[0]}`);
     }

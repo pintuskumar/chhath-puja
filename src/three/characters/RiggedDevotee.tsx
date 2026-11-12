@@ -523,7 +523,7 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality, ground }:
         }
       }
     }
-    if (hands) applyGrips(grip, hands, s, g, reduced ? 1 : delta, WATER_Y);
+    if (hands) applyGrips(grip, hands, s, g, reduced ? 1 : delta, WATER_Y, holds.current.daura);
     for (const f of afterMix) f();
 
     for (const [h, node] of Object.entries(holds.current)) if (node) node.visible = h === s.hold;
@@ -566,9 +566,9 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality, ground }:
             </BothHandsSocket>
           );
         }
-        if (h === "lota" && hands && !offset?.bone) {
+        if ((h === "lota" || h === "diya") && hands && !offset?.bone) {
           return (
-            <FrameSocket key={h} frame={grip.lota} afterMix={afterMix} offset={offset}>
+            <FrameSocket key={h} frame={h === "lota" ? grip.lota : grip.diya} afterMix={afterMix} offset={offset}>
               {content}
             </FrameSocket>
           );
