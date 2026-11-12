@@ -37,3 +37,21 @@ jobs:
           python3 -m http.server 4173 --directory out > /dev/null 2>&1 &
           sleep 2
           node scripts/perf-probe.mjs http://localhost:4173 ${{ inputs.routes || '/ /day/nahay-khay/' }}
+      - name: Lighthouse — simulated vs real (devtools) throttling, 3 runs each
+        run: |
+          python3 -m http.server 4174 --directory out > /dev/null 2>&1 &
+          sleep 2
+          for route in ${{ inputs.routes || '/ /day/nahay-khay/' }}; do
+            for method in simulate devtools; do
+              for i in 1 2 3; do
+                npx --yes lighthouse@12 "http://localhost:4174${route}" --only-categories=performance \
+                  --throttling-method=$method --chrome-flags="--headless=new --no-sandbox --use-gl=swiftshader --enable-unsafe-swiftshader" \
+                  --output=json --output-path=lh.json --quiet || continue
+                node -e '
+                  const r = require("./lh.json"), a = r.audits;
+                  const lt = (a["long-tasks"].details?.items ?? []).slice(0, 4).map((i) => `${(i.url.split("/").pop() || i.url).slice(0, 24)}@${Math.round(i.startTime)}+${Math.round(i.duration)}`);
+                  console.log(process.argv[1].padEnd(18), process.argv[2].padEnd(9), "perf", Math.round(r.categories.performance.score * 100), "TBT", a["total-blocking-time"].displayValue, "LCP", a["largest-contentful-paint"].displayValue, "|", lt.join(" "));
+                ' "$route" "$method"
+              done
+            done
+          done
