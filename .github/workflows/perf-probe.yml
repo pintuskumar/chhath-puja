@@ -1,0 +1,39 @@
+name: Perf probe (manual)
+
+# One-off diagnosis of main-thread work after load: React commits, long tasks, CPU profile.
+on:
+  push:
+    paths:
+      - scripts/perf-probe.mjs
+      - .github/workflows/perf-probe.yml
+  workflow_dispatch:
+    inputs:
+      routes:
+        description: "Space-separated paths to probe"
+        default: "/ /day/nahay-khay/"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Build (unmangled names)
+        env:
+          NEXT_PUBLIC_SITE_URL: http://localhost
+        run: npx next build --no-mangling
+      - name: Install Playwright
+        run: |
+          npm i --no-save --no-audit --no-fund playwright@1.49.1
+          npx playwright install --with-deps chromium || npx playwright install chromium
+      - name: Probe
+        run: |
+          python3 -m http.server 4173 --directory out > /dev/null 2>&1 &
+          sleep 2
+          node scripts/perf-probe.mjs http://localhost:4173 ${{ inputs.routes || '/ /day/nahay-khay/' }}
