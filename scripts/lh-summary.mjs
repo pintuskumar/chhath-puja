@@ -1,11 +1,23 @@
 // Prints Lighthouse category scores, key metrics and failing accessibility nodes (used in CI).
 import fs from "node:fs";
 const dir = process.argv[2] ?? ".lighthouseci";
+// Several runs per URL (lighthouserc numberOfRuns): report the median-performance run and
+// the spread — single simulated-throttling runs are noisy (e.g. home TBT 60 ms vs 920 ms).
+const byUrl = new Map();
 for (const f of fs.readdirSync(dir).filter((f) => f.startsWith("lhr-") && f.endsWith(".json"))) {
   const r = JSON.parse(fs.readFileSync(`${dir}/${f}`, "utf8"));
+  const u = r.requestedUrl ?? r.finalDisplayedUrl;
+  byUrl.set(u, [...(byUrl.get(u) ?? []), r]);
+}
+for (const runs of byUrl.values()) {
+  const perf = (x) => x.categories.performance?.score ?? 0;
+  const tbt = (x) => Math.round(x.audits["total-blocking-time"]?.numericValue ?? 0);
+  runs.sort((a, b) => perf(a) - perf(b));
+  const r = runs[Math.floor(runs.length / 2)];
   const s = (k) => Math.round((r.categories[k]?.score ?? 0) * 100);
   const m = (id) => r.audits[id]?.displayValue ?? "-";
-  console.log(`\n${r.finalDisplayedUrl}`);
+  console.log(`\n${r.finalDisplayedUrl}  (median of ${runs.length} runs)`);
+  if (runs.length > 1) console.log(`  runs: perf ${runs.map((x) => Math.round(perf(x) * 100)).join("/")} · TBT ${runs.map(tbt).join("/")} ms`);
   console.log(`  perf=${s("performance")} a11y=${s("accessibility")} best=${s("best-practices")} seo=${s("seo")}`);
   console.log(`  FCP=${m("first-contentful-paint")} LCP=${m("largest-contentful-paint")} TBT=${m("total-blocking-time")} CLS=${m("cumulative-layout-shift")} SI=${m("speed-index")}`);
   const findNode = (o) => {

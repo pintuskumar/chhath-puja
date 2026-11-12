@@ -9,7 +9,7 @@
         "http://localhost/explore/index.html",
         "http://localhost/traditions/index.html"
       ],
-      "numberOfRuns": 1,
+      "numberOfRuns": 3,
       "settings": {
         "chromeFlags": "--no-sandbox --use-gl=swiftshader --enable-unsafe-swiftshader"
       }

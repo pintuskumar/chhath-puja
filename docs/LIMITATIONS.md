@@ -24,5 +24,6 @@ Honest status of what is and isn't finished.
 - Localization is client-side (Hindi pre-rendered, English applied after hydration) so the site can be hosted statically. English pages are therefore not separately indexable; a `/en/` route tree (e.g. with `next-intl`) would fix that if a server or per-locale export is added.
 - The guided story relies on scroll position; very fast flings can skip the entry animation of a scene (the scene still becomes active and its text is complete).
 - Lighthouse in CI runs on a GPU-less VM, so it measures the **2D path**: software WebGL is detected and served the illustration, as real GPU-less devices would be. 3D frame rate on real phones still needs on-device testing (see TESTING_CHECKLIST).
+- Lighthouse's default *simulated* throttling is noisy for the home page: three back-to-back runs of the same build gave TBT 920 / 60 / 60 ms. With real (devtools) 4× CPU throttling it is a steady perf 86–87, TBT 160 ms (day pages 91–93). CI therefore takes the median of 3 runs; `.github/workflows/perf-probe.yml` (manual) prints both methods plus React commits and a CPU profile when a regression needs explaining.
 - GitHub Pages deployment needs a one-time settings change by a repo admin (see DEPLOYMENT.md).
 - No automated end-to-end (Playwright) tests yet; checks are content integrity, typecheck, build and Lighthouse.
