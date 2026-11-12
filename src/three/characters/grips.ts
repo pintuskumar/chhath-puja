@@ -253,7 +253,10 @@ export function applyGrips(state: GripState, hands: Hands, s: ActorState, root: 
     curl(h, [30, 35, 25], 22);
     if (!frame(h, T.f, T.n, T.a, false)) return;
     const fist = new THREE.Vector3().copy(T.n);
-    // axis: upright when carried, along the knuckles (index side up) when pouring
+    // axis: upright when carried; when pouring it runs along the knuckles. The lota clip turns
+    // the hand index-down / pinky-up (build_clips.py c_lota: across = (0,0,-1)), so the
+    // mouth is on the pinky side: axis = −a (pinky → index reversed).
+    T.a.negate();
     y.copy(UP).lerp(T.a, state.lotaTilt);
     if (!unit(y)) y.copy(UP);
     h.grip.getWorldPosition(o);

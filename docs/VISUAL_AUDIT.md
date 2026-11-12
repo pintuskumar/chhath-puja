@@ -120,7 +120,7 @@ The existing hotspots, panels, scroll story, controls, language, audio and progr
 | Export guide for you: [METAHUMAN_GUIDE.md](METAHUMAN_GUIDE.md) | ✅ |
 | `vrati_a.glb` + core clips (MetaHuman, saree, mocap) | ⏳ **waiting on you** |
 | Foot IK on steps, wet-saree material | ✅ shipped (see §8) |
-| Hand IK (per-finger grip) | ⏳ not done: the soop sits in a two-palm socket |
+| Hand IK (per-finger grip) | ✅ soop and lota (`grips.ts`: arm IK + palm orientation + finger curl, after the mixer); other props: sockets |
 | Before/after Sandhya Arghya with identical cameras | ✅ §8 |
 
 ## 8. Result: the MakeHuman / MPFB route (shipped)
@@ -149,7 +149,7 @@ Both pairs come from the same CI smoke-test step (`scripts/smoke.mjs`: scroll th
 | `child` | procedural | `characters/child.glb`: blue kurta, pyjama | 0.69 MB · 15.0k |
 | all animation | sine-wave limb rotation on primitives | `anims/chhath_clips.glb`: 16 clips on the shared Mixamo skeleton | 0.57 MB |
 
-What each character has: a skinned body with fingers and a `mixamorig:*` skeleton, plus `hand_r_grip`/`hand_l_grip` sockets. Garments are generated, cloth-simulated and skinned to the same skeleton. The cotton weave is in the base colour and normal maps. Files use Meshopt + WebP at 1024 px. The soop sits in a socket between both palms.
+What each character has: a skinned body with fingers and a `mixamorig:*` skeleton, plus `hand_r_grip`/`hand_l_grip` sockets. Garments are generated, cloth-simulated and skinned to the same skeleton. The cotton weave is in the base colour and normal maps. Files use Meshopt + WebP at 1024 px. The soop rests on both palms under its side edges and the lota is held by the neck (runtime grips, `grips.ts`).
 
 Clips: `idle_stand, walk_barefoot, walk_steps_down, carry_daura_walk, carry_daura_idle, stand_in_water_idle, soop_hold, soop_raise_arghya, lota_pour, namaste, sit_crosslegged, sit_eat, stir_chulha, sweep, bow_touch_feet, give_prasad`. Each clip is retargeted per character at runtime: rotations are deltas from rest, and only the hips translate (scaled to hip height). Review sheet: [`characters/clips_sheet.png`](characters/clips_sheet.png).
 
@@ -169,4 +169,4 @@ Clips: `idle_stand, walk_barefoot, walk_steps_down, carry_daura_walk, carry_daur
   * **Skin pores.** A tiled pore normal map makes the skin less plastic.
   * **Brown eyes with a highlight.** The irises are warm brown and the cornea is glossy, so the eyes catch the light.
   * **Still not photoreal.** The hair is still a solid shell, and up close they look like good game characters. Close-ups therefore show real photographs (`src/content/photos.ts`).
-* No per-finger grip on the lota/soop handles: the props sit in hand/two-palm sockets.
+* Grips are approximate: one curl hinge per hand, no finger collision; only the soop and lota are solved (other props use sockets). Close-ups for review: `grip-*.png` in the smoke-test artifacts.
