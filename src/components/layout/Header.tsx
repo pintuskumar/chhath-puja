@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { IntentLink as Link } from "../IntentLink";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";

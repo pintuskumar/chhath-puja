@@ -4,7 +4,7 @@
  * /journey — interactive four-day timeline. Pick a day to see its scenes,
  * with locally saved progress; jump straight to any ritual.
  */
-import Link from "next/link";
+import { IntentLink as Link } from "../IntentLink";
 import { useState, type KeyboardEvent } from "react";
 import { Check, ArrowRight } from "lucide-react";
 import { usePrefs } from "@/lib/store";

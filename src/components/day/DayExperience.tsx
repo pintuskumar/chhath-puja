@@ -5,7 +5,7 @@
  *  A. Guided story: a sticky stage with scroll-driven scenes (GSAP ScrollTrigger).
  *  B. Explore freely: free camera, scene tabs, every scene/object one tap away.
  */
-import Link from "next/link";
+import { IntentLink as Link } from "../IntentLink";
 import { useCallback, useEffect, useRef, type ReactNode, type KeyboardEvent } from "react";
 import { ArrowRight, ArrowLeft, BookOpenText, Compass } from "lucide-react";
 import { useExperience, usePrefs } from "@/lib/store";

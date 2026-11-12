@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { IntentLink as Link } from "../IntentLink";
 import { useT } from "@/lib/i18n";
 import { days } from "@/content/days";
 import { BorderBand } from "../illustrations/Madhubani";

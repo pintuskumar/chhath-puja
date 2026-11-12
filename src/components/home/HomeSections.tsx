@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { IntentLink as Link } from "../IntentLink";
 import { ArrowRight, BookOpenText, Compass } from "lucide-react";
 import { useT, num, formatDate } from "@/lib/i18n";
 import { days } from "@/content/days";
