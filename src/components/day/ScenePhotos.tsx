@@ -38,13 +38,14 @@ function Credit({ p, className = "" }: { p: ScenePhoto; className?: string }) {
   );
 }
 
-/** Full-stage photograph for the close-up view, with a slow drift (off for reduced motion). */
+/** Full-stage photograph for the close-up view, with a slow drift (off for reduced motion).
+ *  Its caption/credit is <PhotoCaption/>, rendered in the stage overlay so it stays above the scene cards. */
 export function PhotoCloseup({ sceneId }: { sceneId: string }) {
   const { t } = useT();
   const p = photosFor(sceneId)[0];
   if (!p) return null;
   return (
-    <figure className="photo-closeup absolute inset-0 z-[6] m-0 overflow-hidden bg-night" data-testid="photo-closeup">
+    <div className="photo-closeup absolute inset-0 z-[6] overflow-hidden bg-night" data-testid="photo-closeup">
       <img
         key={p.src}
         src={asset(p.src)}
@@ -56,12 +57,24 @@ export function PhotoCloseup({ sceneId }: { sceneId: string }) {
         style={{ objectPosition: p.focus ?? "50% 50%" }}
       />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-night/70 to-transparent" aria-hidden="true" />
-      <figcaption className="absolute bottom-[6.5rem] right-3 z-[7] max-w-[min(26rem,calc(100%-1.5rem))] rounded-2xl bg-night/70 px-3 py-2 text-right text-xs text-cream backdrop-blur-sm md:bottom-auto md:top-28">
-        <span className="block font-semibold text-gold">{t("realPhoto")}</span>
-        <span className="block text-sm">{t(p.caption)}</span>
-        <Credit p={p} className="block opacity-80" />
-      </figcaption>
-    </figure>
+    </div>
+  );
+}
+
+/** Caption + photographer credit and licence of the close-up photo. */
+export function PhotoCaption({ sceneId, className = "" }: { sceneId: string; className?: string }) {
+  const { t } = useT();
+  const p = photosFor(sceneId)[0];
+  if (!p) return null;
+  return (
+    <p
+      data-testid="photo-credit"
+      className={`pointer-events-auto m-0 max-w-[min(26rem,100%)] rounded-2xl bg-night/75 px-3 py-2 text-right text-xs text-cream backdrop-blur-sm ${className}`}
+    >
+      <span className="block font-semibold text-gold">{t("realPhoto")}</span>
+      <span className="block text-sm">{t(p.caption)}</span>
+      <Credit p={p} className="block opacity-80" />
+    </p>
   );
 }
 

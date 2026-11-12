@@ -158,9 +158,24 @@ for (const [vpName, viewport] of [
       .then(() => true)
       .catch(() => false);
     if (!ok) errors.push(`[${vpName}] close-up photo did not load on the arghya scene`);
-    const credit = await page.locator('[data-testid="photo-closeup"] figcaption').innerText().catch(() => "");
+    const credit = await page.locator('[data-testid="photo-credit"]').innerText().catch(() => "");
     if (!/CC BY|पारिवारिक|family/.test(credit)) errors.push(`[${vpName}] close-up photo has no credit/licence`);
     await wait(1200);
+    // toolbar + photo credit must be on top of the scene card that is on screen (not hidden under it)
+    const covered = await page.evaluate(() => {
+      const targets = [
+        ...document.querySelectorAll('[role="toolbar"] button:not([disabled]), [role="toolbar"] input, [data-testid="photo-credit"] a'),
+      ];
+      return targets
+        .map((el) => {
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 || r.bottom < 0 || r.top > innerHeight) return null;
+          const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return hit && (el === hit || el.contains(hit)) ? null : `${el.getAttribute("aria-label") || el.textContent?.trim()} under ${hit?.tagName.toLowerCase()}.${String(hit?.className).split(" ")[0]}`;
+        })
+        .filter(Boolean);
+    });
+    if (covered.length) errors.push(`[${vpName}] stage controls covered by the page: ${covered.join("; ")}`);
     const shifted = await page.evaluate(() =>
       [document.scrollingElement, ...document.querySelectorAll("*")]
         .filter((e) => e && e.scrollLeft > 0)

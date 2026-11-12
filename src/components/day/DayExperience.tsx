@@ -13,7 +13,7 @@ import { useReducedMotion, useHydrated } from "@/lib/device";
 import { useT, num, formatDate } from "@/lib/i18n";
 import { days } from "@/content/days";
 import type { Day, Scene } from "@/content/types";
-import { DayStage, StageControls } from "./DayStage";
+import { DayStage, StageOverlay } from "./DayStage";
 import { DayScene } from "./DayScene";
 import { SceneController } from "./SceneController";
 import { ScrollStoryController } from "./ScrollStoryController";
@@ -157,15 +157,15 @@ function Guided({ day, reduced }: { day: Day; reduced: boolean }) {
         {/* sticky stage */}
         <div className="sticky top-0 h-[100dvh] w-full">
           <DayStage day={day} free={false} />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center p-3 md:justify-start md:p-5">
-            <div className="w-full max-w-2xl">
-              <StageControls day={day} onPrev={() => go(Math.max(0, active - 1))} onNext={() => go(Math.min(day.scenes.length - 1, active + 1))} />
-            </div>
-          </div>
+        </div>
+        {/* toolbar + photo credit: its own sticky layer *above* the scene cards (z-20 > z-10),
+            so they stay readable and tappable while a card scrolls underneath */}
+        <div className="pointer-events-none sticky top-0 z-20 -mt-[100dvh] h-[100dvh] w-full">
+          <StageOverlay day={day} onPrev={() => go(Math.max(0, active - 1))} onNext={() => go(Math.min(day.scenes.length - 1, active + 1))} />
         </div>
         {/* scroll narrative over the stage */}
         <div className="pointer-events-none relative z-10 -mt-[100dvh]">
-          <header className="flex min-h-[100dvh] items-end bg-gradient-to-t from-night/85 via-night/30 to-transparent px-5 pb-28 pt-32 md:items-center md:pb-10">
+          <header className="flex min-h-[100dvh] items-end bg-gradient-to-t from-night/85 via-night/30 to-transparent px-5 pb-44 pt-32 md:items-center md:pb-10">
             <div className="pointer-events-auto mx-auto w-full max-w-7xl">
               <DayHeader day={day} />
               <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -220,8 +220,8 @@ function Free({ day }: { day: Day }) {
       <div className="relative flex min-h-[100dvh] flex-col lg:flex-row">
         <div className="relative h-[58dvh] w-full lg:h-[100dvh] lg:flex-1">
           <DayStage day={day} free />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-3">
-            <StageControls day={day} onPrev={() => setActive(Math.max(0, active - 1))} onNext={() => setActive(Math.min(day.scenes.length - 1, active + 1))} />
+          <div className="pointer-events-none absolute inset-0 z-20">
+            <StageOverlay day={day} onPrev={() => setActive(Math.max(0, active - 1))} onNext={() => setActive(Math.min(day.scenes.length - 1, active + 1))} />
           </div>
         </div>
         <aside className="relative z-10 w-full bg-cream text-night lg:h-[100dvh] lg:w-[30rem] lg:overflow-y-auto lg:pt-28" aria-label={t(day.title)}>

@@ -13,7 +13,7 @@ import { SceneIllustration } from "../illustrations/SceneIllustration";
 import { TimeOfDayController, useStageHour } from "./TimeOfDayController";
 import { HotspotLayer } from "./HotspotLayer";
 import type { Day } from "@/content/types";
-import { PhotoCloseup, photosFor } from "./ScenePhotos";
+import { PhotoCaption, PhotoCloseup, photosFor } from "./ScenePhotos";
 
 const ExperienceCanvas = dynamic(() => import("../ExperienceCanvas"), { ssr: false });
 
@@ -33,16 +33,47 @@ export function ReducedMotionFallback({ day, showLabel }: { day: Day; showLabel:
   );
 }
 
+/** Close-ups of people show a real photograph of the moment; the 3D scene keeps the wide shots. */
+function usePhotoScene(day: Day): string | null {
+  const active = useExperience((s) => s.activeScene);
+  const view = useExperience((s) => s.view);
+  const scene = day.scenes[Math.min(active, day.scenes.length - 1)];
+  return view === "closeup" && photosFor(scene.id).length > 0 ? scene.id : null;
+}
+
+/**
+ * Everything that must stay on top of the stage *and* the scrolling scene cards:
+ * the playback toolbar (bottom) and the close-up photo's credit (above the toolbar on
+ * phones, top-right on wider screens). Render it as a layer above the card narrative.
+ */
+export function StageOverlay({ day, onPrev, onNext }: { day: Day; onPrev: () => void; onNext: () => void }) {
+  const photoScene = usePhotoScene(day);
+  return (
+    <div className="pointer-events-none absolute inset-0 flex flex-col justify-end">
+      <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-night/70 via-night/35 to-transparent md:h-24" aria-hidden="true" />
+      {photoScene && (
+        <PhotoCaption
+          sceneId={photoScene}
+          className="relative mx-3 mb-2 self-end md:absolute md:right-5 md:top-28 md:m-0"
+        />
+      )}
+      <div className="relative flex justify-center p-3 md:justify-start md:p-5">
+        <div className="w-full max-w-2xl">
+          <StageControls day={day} onPrev={onPrev} onNext={onNext} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DayStage({ day, free }: { day: Day; free: boolean }) {
   const can3d = use3D();
   const quality = useEffectiveQuality();
   const reduced = useReducedMotion();
   const { t } = useT();
   const active = useExperience((s) => s.activeScene);
-  const view = useExperience((s) => s.view);
   const scene = day.scenes[Math.min(active, day.scenes.length - 1)];
-  // close-ups of people: a real photograph of the moment; the 3D scene keeps the wide shots
-  const showPhoto = view === "closeup" && photosFor(scene.id).length > 0;
+  const showPhoto = usePhotoScene(day) !== null;
   return (
     <div className="absolute inset-0 overflow-hidden bg-night">
       {can3d ? (
