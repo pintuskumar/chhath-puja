@@ -44,7 +44,7 @@ const HOLD_BONE: Record<Exclude<HoldId, "none">, "right" | "left" | "head" | "bo
   wood: "head",
 };
 
-type GripProbe = Record<string, { hold: HoldId; pose: string; stream: boolean; l: number[]; r: number[]; fwd: number[] }>;
+type GripProbe = Record<string, { hold: HoldId; pose: string; stream: boolean; l: number[]; r: number[]; fwd: number[]; n: number }>;
 const probeV = new THREE.Vector3();
 /**
  * Test-only (scripts/smoke.mjs sets `window.__gripProbe`): report each character's hand
@@ -61,7 +61,8 @@ function publishGrips(
   const p = (o: THREE.Object3D) => o.getWorldPosition(probeV).toArray().map((v) => +v.toFixed(3));
   probeV.set(0, 0, 1).transformDirection(root.matrixWorld);
   const fwd = probeV.toArray().map((v) => +v.toFixed(3));
-  out[s.look] = { hold: s.hold, pose: s.pose, stream: !!s.stream, l: p(bones.left), r: p(bones.right), fwd };
+  const n = (out[s.look]?.n ?? 0) + 1; // frames rendered (the test checks the page is not stuck)
+  out[s.look] = { hold: s.hold, pose: s.pose, stream: !!s.stream, l: p(bones.left), r: p(bones.right), fwd, n };
 }
 
 function findBone(root: THREE.Object3D, names: string[]) {

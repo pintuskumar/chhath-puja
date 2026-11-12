@@ -247,18 +247,30 @@ for (const [vpName, viewport] of [
       const right = [-g.fwd[2], 0, g.fwd[0]];
       const pos = mid.map((v, i) => v + g.fwd[i] * dist + right[i] * side + (i === 1 ? up : 0));
       await gs.page.evaluate(({ pos, target }) => void (window.__debugCam = { pos, target }), { pos, target: mid });
-      await wait(900);
-      console.log(`grip ${who}: hold=${g.hold} pose=${g.pose} hands L${JSON.stringify(g.l)} R${JSON.stringify(g.r)}`);
-      await shot(gs.page, file);
+      const n0 = await gs.page.evaluate((w) => window.__grips?.[w]?.n ?? 0, who);
+      await wait(1000);
+      const g2 = await gs.page.evaluate((w) => window.__grips?.[w], who).catch(() => null);
+      const fps = g2 ? g2.n - n0 : "?";
+      const bad = g2 && [...g2.l, ...g2.r].some((v) => !Number.isFinite(v));
+      console.log(`grip ${who}: hold=${g.hold} pose=${g.pose} stream=${g.stream} fps≈${fps} hands L${JSON.stringify(g.l)} R${JSON.stringify(g.r)}`);
+      if (bad) errors.push(`[grip] ${who}: non-finite hand position`);
+      if (fps === 0) errors.push(`[grip] ${who}: page stopped rendering`);
+      await gs.page
+        .screenshot({ path: `${OUT}/${file}.png`, timeout: 60000 })
+        .catch((e) => errors.push(`[grip] ${file}: ${e.message.split("\n")[0]}`));
     };
-    await wait(6000);
-    await frame("vrati", "grip-soop-front");
-    await frame("vrati", "grip-soop-side", { dist: 0.35, side: 0.75, up: 0.25 });
-    // pouring comes and goes with the scene clock: wait for it
-    await gs.page.waitForFunction(() => window.__grips?.youngman?.stream, null, { timeout: 30000 }).catch(() => {});
-    await frame("youngman", "grip-lota-front", { dist: 0.6, side: 0.25, up: 0.1 });
-    await frame("youngman", "grip-lota-side", { dist: 0.2, side: 0.6, up: 0.15 });
-    await gs.ctx.close();
+    try {
+      await wait(6000);
+      await frame("vrati", "grip-soop-front");
+      await frame("vrati", "grip-soop-side", { dist: 0.35, side: 0.75, up: 0.25 });
+      // pouring comes and goes with the scene clock: wait for it
+      await gs.page.waitForFunction(() => window.__grips?.youngman?.stream, null, { timeout: 30000 }).catch(() => {});
+      await frame("youngman", "grip-lota-front", { dist: 0.6, side: 0.25, up: 0.1 });
+      await frame("youngman", "grip-lota-side", { dist: 0.2, side: 0.6, up: 0.15 });
+    } catch (e) {
+      errors.push(`[grip] close-ups failed: ${e.message.split("\n")[0]}`);
+    }
+    await gs.ctx.close().catch(() => {});
   }
 }
 

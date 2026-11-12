@@ -113,12 +113,15 @@ function frame(h: Hand, f: THREE.Vector3, n: THREE.Vector3, a: THREE.Vector3, le
   const { p0, p1, p2 } = T;
   h.hand.getWorldPosition(p0);
   h.fingers[1][0].getWorldPosition(p1);
-  f.subVectors(p1, p0).normalize();
+  f.subVectors(p1, p0);
+  if (!unit(f)) return false;
   h.fingers[0][0].getWorldPosition(p1);
   h.fingers[3][0].getWorldPosition(p2);
   a.subVectors(p1, p2);
-  a.addScaledVector(f, -a.dot(f)).normalize();
-  n.crossVectors(f, a).normalize();
+  a.addScaledVector(f, -a.dot(f));
+  if (!unit(a)) return false;
+  n.crossVectors(f, a);
+  if (!unit(n)) return false;
   if (learn) {
     // curled fingertips point to the palm side: learn the sign from the clip's finger curl
     h.fingers[1][0].getWorldPosition(p1);
@@ -128,41 +131,61 @@ function frame(h: Hand, f: THREE.Vector3, n: THREE.Vector3, a: THREE.Vector3, le
     if (p2.lengthSq() > 0.003 * 0.003) h.palmSign = p2.dot(n) >= 0 ? 1 : -1;
   }
   n.multiplyScalar(h.palmSign);
+  return true;
 }
+
+/** A unit vector we can trust (degenerate cross products / zero lengths give NaN). */
+const unit = (v: THREE.Vector3) => {
+  const l = v.length();
+  if (!(l > 1e-6)) return false;
+  v.divideScalar(l);
+  return true;
+};
+const finite = (q: THREE.Quaternion) => Number.isFinite(q.x + q.y + q.z + q.w);
 
 /** Rotate the hand (about the wrist) so its fingers point along fw and the palm faces nw. */
 function orientHand(h: Hand, fw: THREE.Vector3, nw: THREE.Vector3) {
-  frame(h, T.f, T.n, T.a);
+  if (!frame(h, T.f, T.n, T.a)) return false;
   T.b.crossVectors(T.f, T.n);
   T.m0.makeBasis(T.f, T.n, T.b);
-  T.nw.copy(nw).addScaledVector(fw, -nw.dot(fw)).normalize();
-  T.fw.copy(fw).normalize();
+  T.fw.copy(fw);
+  if (!unit(T.fw)) return false;
+  T.nw.copy(nw).addScaledVector(T.fw, -nw.dot(T.fw));
+  if (!unit(T.nw)) return false;
   T.b.crossVectors(T.fw, T.nw);
   T.m1.makeBasis(T.fw, T.nw, T.b);
   T.m1.multiply(T.m0.transpose());
-  rotateWorld(h.hand, T.q.setFromRotationMatrix(T.m1));
+  T.q.setFromRotationMatrix(T.m1);
+  if (!finite(T.q)) return false;
+  rotateWorld(h.hand, T.q.normalize());
+  return true;
 }
 
 /** Put the grip point (palm centre) at `target`, hand oriented (fw, nw), elbow kept on its side. */
 function placeHand(h: Hand, target: THREE.Vector3, fw: THREE.Vector3, nw: THREE.Vector3) {
-  orientHand(h, fw, nw);
+  if (!orientHand(h, fw, nw) || !Number.isFinite(target.x + target.y + target.z)) return false;
   h.grip.getWorldPosition(T.p1);
   h.hand.getWorldPosition(T.p0);
   T.tgt.copy(target).sub(T.p1).add(T.p0); // wrist target
   T.side.copy(T.n); // fallback bend axis if the arm is fully straight
   solveTwoBone({ hip: h.upper, knee: h.fore, foot: h.hand }, T.tgt, T.side);
+  return true;
 }
 
 /** Flex (deg > 0) or straighten (deg < 0) the fingers about the knuckle hinge, per joint. */
 function curl(h: Hand, deg: [number, number, number], thumbDeg = 0) {
-  frame(h, T.f, T.n, T.a); // fingers are still as the clip curled them → learn the palm side
-  T.a.crossVectors(T.f, T.n).normalize(); // rotating f about f × n moves it towards the palm
+  if (!frame(h, T.f, T.n, T.a)) return; // fingers are still as the clip curled them → learn the palm side
+  T.a.crossVectors(T.f, T.n); // rotating f about f × n moves it towards the palm
+  if (!unit(T.a)) return;
   for (const finger of h.fingers)
     for (let j = 0; j < 3; j++) if (deg[j]) rotateWorld(finger[j], T.q.setFromAxisAngle(T.a, THREE.MathUtils.degToRad(deg[j])));
   if (thumbDeg) {
     h.thumb[0].getWorldPosition(T.p0);
     h.thumb[2].getWorldPosition(T.p1);
-    T.b.subVectors(T.p1, T.p0).normalize().cross(T.n).normalize();
+    T.b.subVectors(T.p1, T.p0);
+    if (!unit(T.b)) return;
+    T.b.cross(T.n);
+    if (!unit(T.b)) return;
     for (const j of [1, 2]) rotateWorld(h.thumb[j], T.q.setFromAxisAngle(T.b, THREE.MathUtils.degToRad(thumbDeg)));
   }
 }
@@ -173,7 +196,7 @@ function toLocal(root: THREE.Object3D, out: Frame, o: THREE.Vector3, x: THREE.Ve
   root.worldToLocal(out.p);
   T.m0.makeBasis(x, y, z);
   out.q.setFromRotationMatrix(T.m0).premultiply(root.getWorldQuaternion(T.qr).invert());
-  out.ok = true;
+  out.ok = finite(out.q) && Number.isFinite(out.p.x + out.p.y + out.p.z);
 }
 
 // Soop (props.tsx): base 0.6 (x) × 0.5 (z) m, origin at the centre of its underside.
@@ -203,9 +226,9 @@ export function applyGrips(state: GripState, hands: Hands, s: ActorState, root: 
     const gr = hands.r.grip.getWorldPosition(T.p2);
     o.addVectors(gl, gr).multiplyScalar(0.5);
     x.subVectors(gl, gr);
-    if (x.lengthSq() > 1e-8) {
-      x.normalize();
-      y.copy(UP).addScaledVector(x, -x.y).normalize();
+    if (unit(x)) {
+      y.copy(UP).addScaledVector(x, -x.y);
+      if (!unit(y)) y.copy(UP);
       z.crossVectors(x, y);
       for (const [h, sgn] of [
         [hands.l, 1],
@@ -228,15 +251,18 @@ export function applyGrips(state: GripState, hands: Hands, s: ActorState, root: 
     state.lotaTilt = delta >= 1 ? tilt : state.lotaTilt + (tilt - state.lotaTilt) * (1 - Math.exp(-delta * 5));
     // close the fist around the neck (on top of the clip's 45° curl)
     curl(h, [30, 35, 25], 22);
-    frame(h, T.f, T.n, T.a, false);
+    if (!frame(h, T.f, T.n, T.a, false)) return;
     const fist = new THREE.Vector3().copy(T.n);
     // axis: upright when carried, along the knuckles (index side up) when pouring
-    y.copy(UP).lerp(T.a, state.lotaTilt).normalize();
+    y.copy(UP).lerp(T.a, state.lotaTilt);
+    if (!unit(y)) y.copy(UP);
     h.grip.getWorldPosition(o);
     o.addScaledVector(fist, LOTA_FIST).addScaledVector(y, -LOTA_NECK_Y); // pot origin = base centre
     z.copy(fist).addScaledVector(y, -fist.dot(y));
-    if (z.lengthSq() < 1e-6) z.set(0, 0, 1).addScaledVector(y, -y.z);
-    z.normalize();
+    if (!unit(z)) {
+      z.set(0, 0, 1).addScaledVector(y, -y.z);
+      if (!unit(z)) z.set(1, 0, 0);
+    }
     x.crossVectors(y, z);
     toLocal(root, state.lota, o, x, y, z);
 
@@ -244,20 +270,20 @@ export function applyGrips(state: GripState, hands: Hands, s: ActorState, root: 
       // other palm under the base, fingers forward
       const tgt = new THREE.Vector3().copy(o).addScaledVector(y, -PALM - 0.008);
       const fwd = new THREE.Vector3(0, 0, 1).transformDirection(root.matrixWorld);
-      const fw = fwd.addScaledVector(y, -fwd.dot(y)).normalize();
-      placeHand(hands.l, tgt, fw, y);
+      const fw = fwd.addScaledVector(y, -fwd.dot(y));
+      if (unit(fw)) placeHand(hands.l, tgt, fw, y);
       curl(hands.l, [8, 10, 6]);
     }
     if (s.stream) {
       // lowest point of the lip, then straight down to the water
       const lip = new THREE.Vector3().copy(o).addScaledVector(y, LOTA_LIP_Y);
       const down = new THREE.Vector3(0, -1, 0).addScaledVector(y, y.y);
-      if (down.lengthSq() > 1e-6) lip.addScaledVector(down.normalize(), LOTA_LIP_R);
+      if (unit(down)) lip.addScaledVector(down, LOTA_LIP_R);
       root.worldToLocal(lip);
       const waterLocal = waterY - root.position.y;
       state.stream.p.copy(lip);
       state.stream.len = Math.max(0, lip.y - waterLocal);
-      state.stream.ok = state.stream.len > 0.05;
+      state.stream.ok = state.stream.len > 0.05 && state.stream.len < 5 && Number.isFinite(lip.x + lip.y + lip.z);
     }
   }
 }
