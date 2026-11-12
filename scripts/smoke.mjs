@@ -169,6 +169,15 @@ for (const [vpName, viewport] of [
   await page.goto(`${BASE}/explore/`, { waitUntil: "networkidle", timeout: 90000 });
   await wait(4000);
   await shot(page, `${vpName}-explore`);
+
+  // Footer credit → GitHub profile; and no sideways page scroll
+  await page.locator("footer").scrollIntoViewIfNeeded();
+  await wait(800);
+  const gh = await page.locator('footer a[href="https://github.com/pintu544"]').count();
+  if (!gh) errors.push(`[${vpName}] footer credit link to github.com/pintu544 missing`);
+  const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (wide > 1) console.log(`${vpName}: page content is ${wide}px wider than the viewport (clipped)`);
+  await shot(page, `${vpName}-footer`);
   await ctx.close();
 
   // Free mode

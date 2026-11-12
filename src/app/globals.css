@@ -17,6 +17,12 @@
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
   }
+  /* never let a wide row (e.g. the stage toolbar on phones) make the page scroll sideways;
+     `clip` (not `hidden`) keeps position: sticky working */
+  html,
+  body {
+    overflow-x: clip;
+  }
   html[data-motion="reduced"] {
     scroll-behavior: auto;
   }
