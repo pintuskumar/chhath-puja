@@ -105,6 +105,13 @@
   }
 }
 
+/* Below-the-fold sections: the browser skips their style/layout/paint until they near the
+   viewport (cheaper first load on phones). `auto` remembers the real size once rendered. */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 1400px;
+}
+
 /* Close-up photograph: fade in, then a slow drift (frozen by the reduced-motion rules below) */
 .photo-closeup {
   animation: photoIn 0.6s ease-out both;

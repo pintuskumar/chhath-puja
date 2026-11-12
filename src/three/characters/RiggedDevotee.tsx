@@ -143,9 +143,21 @@ function fixHumanAlpha(x: THREE.Material) {
       e.envMapIntensity = 1.6;
     }
   } else {
-    x.transparent = false; // hair
-    x.alphaTest = 0.5;
+    // hair: strand cards, cut out by the texture's alpha. With MSAA (medium/high quality)
+    // alpha-to-coverage turns the hard 0.5 cut into soft, fine strand tips instead of a
+    // jagged solid "helmet"; without MSAA three.js falls back to a plain cut-out.
+    x.transparent = false;
+    x.alphaTest = 0.35;
+    x.alphaToCoverage = true;
     x.depthWrite = true;
+    x.side = THREE.DoubleSide; // cards seen from behind must not vanish (patchy scalp)
+    const h = x as THREE.MeshStandardMaterial;
+    if (h.isMeshStandardMaterial) {
+      // oiled black hair (common for vratis): a soft sheen rather than chalky matte
+      h.roughness = Math.min(h.roughness, 0.42);
+      h.metalness = 0;
+      h.envMapIntensity = 1.25;
+    }
   }
   x.needsUpdate = true;
 }

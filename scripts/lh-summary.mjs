@@ -32,6 +32,10 @@ for (const f of fs.readdirSync(dir).filter((f) => f.startsWith("lhr-") && f.ends
   if (rb?.length) console.log(`  render-blocking: ${rb.join(" ")}`);
   const boot = r.audits["bootup-time"]?.details?.items?.slice(0, 4).map((i) => `${i.url.split("/").pop()}:${Math.round(i.total)}ms`);
   if (boot) console.log(`  bootup: ${boot.join(" ")}`);
+  const mt = r.audits["mainthread-work-breakdown"]?.details?.items?.slice(0, 6).map((i) => `${i.groupLabel ?? i.group}:${Math.round(i.duration)}ms`);
+  if (mt) console.log(`  main thread: ${mt.join(" ")}`);
+  const lt = r.audits["long-tasks"]?.details?.items?.slice(0, 5).map((i) => `${i.url.split("/").pop() || i.url}@${Math.round(i.startTime)}+${Math.round(i.duration)}ms`);
+  if (lt?.length) console.log(`  long tasks: ${lt.join(" ")}`);
   for (const ref of r.categories.accessibility.auditRefs) {
     const a = r.audits[ref.id];
     if (ref.weight > 0 && a.score !== null && a.score < 1) {

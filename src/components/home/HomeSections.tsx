@@ -10,7 +10,7 @@ import { FishPair, Lotus, BorderBand } from "../illustrations/Madhubani";
 export function DaysOverview() {
   const { t, lang } = useT();
   return (
-    <section id="four-days" className="relative scroll-mt-20 bg-cream px-5 py-20 text-night" aria-labelledby="four-days-title">
+    <section id="four-days" className="cv-auto relative scroll-mt-20 bg-cream px-5 py-20 text-night" aria-labelledby="four-days-title">
       <div className="mx-auto max-w-7xl">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
           <div>
@@ -64,7 +64,7 @@ export function DaysOverview() {
 export function HowToExperience() {
   const { t } = useT();
   return (
-    <section className="relative overflow-hidden bg-maroon px-5 py-20 text-cream" aria-labelledby="modes-title">
+    <section className="cv-auto relative overflow-hidden bg-maroon px-5 py-20 text-cream" aria-labelledby="modes-title">
       <FishPair className="pointer-events-none absolute -right-10 top-6 h-40 w-80 opacity-25" />
       <div className="mx-auto max-w-5xl">
         <h2 id="modes-title" className="font-display text-4xl md:text-5xl">
