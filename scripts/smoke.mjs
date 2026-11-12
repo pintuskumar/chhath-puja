@@ -238,7 +238,10 @@ for (const [vpName, viewport] of [
     const frame = async (who, file, { dist = 0.75, up = 0.12, side = 0.35, pose = null, when = () => true } = {}) => {
       // wait for the pose the shot is about (the scene clock moves the vrati from hold to raise)
       const g = await gs.page
-        .waitForFunction(([w, p]) => window.__grips?.[w] && (!p || window.__grips[w].pose === p), [who, pose], { timeout: 45000 })
+        .waitForFunction(([w, p]) => {
+          const x = window.__grips?.[w];
+          return x && (!p || x.pose === p) ? x : null; // the probe itself, not a boolean
+        }, [who, pose], { timeout: 45000 })
         .then((h) => h.jsonValue())
         .catch(() => null);
       if (!g) return errors.push(`[grip] no grip probe for ${who}`);
