@@ -130,6 +130,16 @@ for (const [vpName, viewport] of [
   await wait(3000);
   await shot(page, `compare-${vpName}-sandhya-arghya`);
 
+  // Stage toolbar must fit the viewport (time read-out + "follow scene" button fully visible)
+  const overflow = await page.evaluate(() => {
+    const vw = document.documentElement.clientWidth;
+    return [...document.querySelectorAll('[role="toolbar"] output, [role="toolbar"] button')]
+      .map((e) => e.getBoundingClientRect())
+      .filter((r) => r.width > 0 && (r.right > vw + 1 || r.left < -1))
+      .map((r) => `${Math.round(r.left)}–${Math.round(r.right)}`);
+  });
+  if (overflow.length) errors.push(`[${vpName}] stage toolbar overflows the viewport: ${overflow.join(", ")}`);
+
   // Close-up view → real photograph of the moment (src/content/photos.ts), loaded and credited
   try {
     await page.getByRole("button", { name: "नज़दीक से" }).first().click({ timeout: 10000 });

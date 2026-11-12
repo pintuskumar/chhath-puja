@@ -46,7 +46,9 @@ export function TimeOfDayController({ day }: { day: Day }) {
     );
   }
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-night/70 px-3 py-1.5 text-cream">
+    // basis 16rem: on phones the slider wraps to its own full-width row instead of being
+    // squeezed to zero width (which pushed the time read-out off-screen)
+    <div className="flex min-w-0 flex-1 basis-64 items-center gap-2 rounded-full bg-night/70 px-3 py-1.5 text-cream">
       <label htmlFor={id} className="flex shrink-0 items-center gap-1.5 text-sm">
         <Icon h={hour} />
         <span className="hidden sm:inline">{t(tc.label)}</span>
