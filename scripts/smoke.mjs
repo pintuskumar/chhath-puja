@@ -225,6 +225,41 @@ for (const [vpName, viewport] of [
   await wait(3500);
   await shot(free.page, `${vpName}-free-kharna-puja`);
   await free.ctx.close();
+
+  // Grip close-ups (desktop): the camera is put in front of a character's hands via the
+  // test-only window.__debugCam / window.__gripProbe hooks, UI hidden. Reviewed by eye.
+  if (vpName === "desktop") {
+    const gs = await session("grip", viewport, "3d");
+    await gs.ctx.addInitScript(() => {
+      window.__gripProbe = true;
+    });
+    await gs.page.goto(`${BASE}/day/sandhya-arghya/#sandhya-arghya`, { waitUntil: "networkidle", timeout: 90000 });
+    await gs.page.addStyleTag({ content: "header,[data-reveal],[role=toolbar],[data-testid=photo-credit]{visibility:hidden!important}" });
+    const frame = async (who, file, { dist = 0.75, up = 0.12, side = 0.35, when = () => true } = {}) => {
+      const g = await gs.page
+        .waitForFunction((w) => window.__grips?.[w], who, { timeout: 30000 })
+        .then((h) => h.jsonValue())
+        .catch(() => null);
+      if (!g) return errors.push(`[grip] no grip probe for ${who}`);
+      if (!when(g)) console.log(`grip ${who}: state ${JSON.stringify({ hold: g.hold, pose: g.pose, stream: g.stream })}`);
+      const mid = g.l.map((v, i) => (v + g.r[i]) / 2);
+      // camera in front of the character, a little to its right and above the hands
+      const right = [-g.fwd[2], 0, g.fwd[0]];
+      const pos = mid.map((v, i) => v + g.fwd[i] * dist + right[i] * side + (i === 1 ? up : 0));
+      await gs.page.evaluate(({ pos, target }) => void (window.__debugCam = { pos, target }), { pos, target: mid });
+      await wait(900);
+      console.log(`grip ${who}: hold=${g.hold} pose=${g.pose} hands L${JSON.stringify(g.l)} R${JSON.stringify(g.r)}`);
+      await shot(gs.page, file);
+    };
+    await wait(6000);
+    await frame("vrati", "grip-soop-front");
+    await frame("vrati", "grip-soop-side", { dist: 0.35, side: 0.75, up: 0.25 });
+    // pouring comes and goes with the scene clock: wait for it
+    await gs.page.waitForFunction(() => window.__grips?.youngman?.stream, null, { timeout: 30000 }).catch(() => {});
+    await frame("youngman", "grip-lota-front", { dist: 0.6, side: 0.25, up: 0.1 });
+    await frame("youngman", "grip-lota-side", { dist: 0.2, side: 0.6, up: 0.15 });
+    await gs.ctx.close();
+  }
 }
 
 // Rigged-character pipeline (CI fixture mannequin with UE5 bone names; NOT realistic art).

@@ -106,6 +106,26 @@ const HOLD_BONE: Record<Exclude<HoldId, "none">, "right" | "left" | "head" | "bo
   wood: "head",
 };
 
+type GripProbe = Record<string, { hold: HoldId; pose: string; stream: boolean; l: number[]; r: number[]; fwd: number[] }>;
+const probeV = new THREE.Vector3();
+/**
+ * Test-only (scripts/smoke.mjs sets `window.__gripProbe`): report each character's hand
+ * positions in world space so the smoke test can frame a close-up of the grip.
+ */
+function publishGrips(
+  s: ActorState,
+  root: THREE.Object3D,
+  bones: { left: THREE.Object3D | null; right: THREE.Object3D | null },
+) {
+  const w = window as Window & { __gripProbe?: boolean; __grips?: GripProbe };
+  if (!w.__gripProbe || !bones.left || !bones.right) return;
+  const out = (w.__grips ??= {});
+  const p = (o: THREE.Object3D) => o.getWorldPosition(probeV).toArray().map((v) => +v.toFixed(3));
+  probeV.set(0, 0, 1).transformDirection(root.matrixWorld);
+  const fwd = probeV.toArray().map((v) => +v.toFixed(3));
+  out[s.look] = { hold: s.hold, pose: s.pose, stream: !!s.stream, l: p(bones.left), r: p(bones.right), fwd };
+}
+
 function findBone(root: THREE.Object3D, names: string[]) {
   for (const n of names) {
     const hit = root.getObjectByName(n);
@@ -532,6 +552,7 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality, ground }:
 
     for (const [h, node] of Object.entries(holds.current)) if (node) node.visible = h === s.hold;
     if (stream.current) stream.current.visible = !!s.stream;
+    publishGrips(s, g, bones);
   });
 
   return (

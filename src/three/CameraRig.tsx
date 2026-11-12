@@ -34,6 +34,15 @@ export function CameraRig({ free = false }: { free?: boolean }) {
   const offsetKey = useRef("");
 
   useFrame((_, delta) => {
+    // Test-only: scripts/smoke.mjs frames a character's hands (grip check). Never set by the site.
+    const dbg = (window as Window & { __debugCam?: { pos: V3; target: V3 } }).__debugCam;
+    if (dbg) {
+      (camera as THREE.PerspectiveCamera).clearViewOffset();
+      offsetKey.current = "";
+      camera.position.set(...dbg.pos);
+      camera.lookAt(...dbg.target);
+      return;
+    }
     const snap = d.current;
     const preset = snap.view === "closeup" && snap.stage.closeCamera ? snap.stage.closeCamera : snap.stage.camera;
     const c = CAMERAS[preset];
