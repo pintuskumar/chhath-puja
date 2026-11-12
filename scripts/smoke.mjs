@@ -235,18 +235,22 @@ for (const [vpName, viewport] of [
     });
     await gs.page.goto(`${BASE}/day/sandhya-arghya/#sandhya-arghya`, { waitUntil: "networkidle", timeout: 90000 });
     await gs.page.addStyleTag({ content: "header,[data-reveal],[role=toolbar],[data-testid=photo-credit]{visibility:hidden!important}" });
-    const frame = async (who, file, { dist = 0.75, up = 0.12, side = 0.35, when = () => true } = {}) => {
+    const frame = async (who, file, { dist = 0.75, up = 0.12, side = 0.35, pose = null, when = () => true } = {}) => {
+      // wait for the pose the shot is about (the scene clock moves the vrati from hold to raise)
       const g = await gs.page
-        .waitForFunction((w) => window.__grips?.[w], who, { timeout: 30000 })
+        .waitForFunction(([w, p]) => window.__grips?.[w] && (!p || window.__grips[w].pose === p), [who, pose], { timeout: 45000 })
         .then((h) => h.jsonValue())
         .catch(() => null);
       if (!g) return errors.push(`[grip] no grip probe for ${who}`);
       if (!when(g)) console.log(`grip ${who}: state ${JSON.stringify({ hold: g.hold, pose: g.pose, stream: g.stream })}`);
-      const mid = g.l.map((v, i) => (v + g.r[i]) / 2);
       // camera in front of the character, a little to its right and above the hands
-      const right = [-g.fwd[2], 0, g.fwd[0]];
-      const pos = mid.map((v, i) => v + g.fwd[i] * dist + right[i] * side + (i === 1 ? up : 0));
-      await gs.page.evaluate(({ pos, target }) => void (window.__debugCam = { pos, target }), { pos, target: mid });
+      const aimAt = (h) => {
+        const mid = h.l.map((v, i) => (v + h.r[i]) / 2);
+        const right = [-h.fwd[2], 0, h.fwd[0]];
+        const pos = mid.map((v, i) => v + h.fwd[i] * dist + right[i] * side + (i === 1 ? up : 0));
+        return gs.page.evaluate(({ pos, target }) => void (window.__debugCam = { pos, target }), { pos, target: mid });
+      };
+      await aimAt(g);
       const n0 = await gs.page.evaluate((w) => window.__grips?.[w]?.n ?? 0, who);
       await wait(1000);
       const g2 = await gs.page.evaluate((w) => window.__grips?.[w], who).catch(() => null);
@@ -256,18 +260,26 @@ for (const [vpName, viewport] of [
       if (bad) errors.push(`[grip] ${who}: non-finite hand position`);
       // software WebGL renders these close-ups at ~0–8 fps; a 0 here is slowness, not a hang
       if (fps === 0) console.log(`grip ${who}: no new frame within 1 s (software WebGL)`);
+      // hands move with the clip: re-aim at where they are now, then let a frame render
+      if (g2 && !bad) {
+        await aimAt(g2);
+        await wait(700);
+      }
       await gs.page
         .screenshot({ path: `${OUT}/${file}.png`, timeout: 60000 })
         .catch((e) => errors.push(`[grip] ${file}: ${e.message.split("\n")[0]}`));
     };
     try {
       await wait(6000);
-      await frame("vrati", "grip-soop-front");
-      await frame("vrati", "grip-soop-side", { dist: 0.35, side: 0.75, up: 0.25 });
+      await frame("vrati", "grip-soop-front", { pose: "raise-soop" });
+      await frame("vrati", "grip-soop-side", { dist: 0.35, side: 0.75, up: 0.25, pose: "raise-soop" });
+      // from below: the palms under the basket's edges
+      await frame("vrati", "grip-soop-under", { dist: 0.55, side: 0.2, up: -0.35, pose: "raise-soop" });
       // pouring comes and goes with the scene clock: wait for it
       await gs.page.waitForFunction(() => window.__grips?.youngman?.stream, null, { timeout: 30000 }).catch(() => {});
       await frame("youngman", "grip-lota-front", { dist: 0.6, side: 0.25, up: 0.1 });
       await frame("youngman", "grip-lota-side", { dist: 0.2, side: 0.6, up: 0.15 });
+      await frame("youngman", "grip-lota-close", { dist: 0.32, side: 0.12, up: 0.05 });
     } catch (e) {
       errors.push(`[grip] close-ups failed: ${e.message.split("\n")[0]}`);
     }
