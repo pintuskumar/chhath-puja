@@ -56,7 +56,7 @@ export function PhotoCloseup({ sceneId }: { sceneId: string }) {
         style={{ objectPosition: p.focus ?? "50% 50%" }}
       />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-night/70 to-transparent" aria-hidden="true" />
-      <figcaption className="absolute right-3 top-24 max-w-[min(26rem,calc(100%-1.5rem))] rounded-2xl bg-night/70 px-3 py-2 text-right text-xs text-cream backdrop-blur-sm md:top-28">
+      <figcaption className="absolute bottom-[6.5rem] right-3 z-[7] max-w-[min(26rem,calc(100%-1.5rem))] rounded-2xl bg-night/70 px-3 py-2 text-right text-xs text-cream backdrop-blur-sm md:bottom-auto md:top-28">
         <span className="block font-semibold text-gold">{t("realPhoto")}</span>
         <span className="block text-sm">{t(p.caption)}</span>
         <Credit p={p} className="block opacity-80" />
