@@ -44,7 +44,7 @@ const HOLD_BONE: Record<Exclude<HoldId, "none">, "right" | "left" | "head" | "bo
   wood: "head",
 };
 
-type GripProbe = Record<string, { hold: HoldId; pose: string; stream: boolean; l: number[]; r: number[]; fwd: number[]; n: number }>;
+type GripProbe = Record<string, { hold: HoldId; pose: string; stream: boolean; l: number[]; r: number[]; fwd: number[]; n: number; contact: Record<string, number> }>;
 const probeV = new THREE.Vector3();
 /**
  * Test-only (scripts/smoke.mjs sets `window.__gripProbe`): report each character's hand
@@ -54,6 +54,7 @@ function publishGrips(
   s: ActorState,
   root: THREE.Object3D,
   bones: { left: THREE.Object3D | null; right: THREE.Object3D | null },
+  contact: Record<string, number>,
 ) {
   const w = window as Window & { __gripProbe?: boolean; __grips?: GripProbe };
   if (!w.__gripProbe || !bones.left || !bones.right) return;
@@ -62,7 +63,7 @@ function publishGrips(
   probeV.set(0, 0, 1).transformDirection(root.matrixWorld);
   const fwd = probeV.toArray().map((v) => +v.toFixed(3));
   const n = (out[s.look]?.n ?? 0) + 1; // frames rendered (the test checks the page is not stuck)
-  out[s.look] = { hold: s.hold, pose: s.pose, stream: !!s.stream, l: p(bones.left), r: p(bones.right), fwd, n };
+  out[s.look] = { hold: s.hold, pose: s.pose, stream: !!s.stream, l: p(bones.left), r: p(bones.right), fwd, n, contact: { ...contact } };
 }
 
 function findBone(root: THREE.Object3D, names: string[]) {
@@ -536,7 +537,7 @@ export function RiggedDevotee({ get, spec, manifest, reduced, quality, ground }:
         fall.current.scale.set(1, st.len, 1);
       }
     }
-    publishGrips(s, g, bones);
+    publishGrips(s, g, bones, grip.debug);
   });
 
   return (

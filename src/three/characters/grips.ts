@@ -47,6 +47,11 @@ export interface GripState {
   stream: { ok: boolean; p: THREE.Vector3; len: number };
   /** 0 = lota hangs upright (carried), 1 = follows the wrist (pouring / filling) */
   lotaTilt: number;
+  /**
+   * Measured contact this frame (metres, for the smoke test): `<hold>.<l|r>.palm` = distance from
+   * the palm surface to the prop (≈0 = touching), `.up` = palm normal · prop up axis.
+   */
+  debug: Record<string, number>;
 }
 
 export const newGripState = (): GripState => ({
@@ -55,6 +60,7 @@ export const newGripState = (): GripState => ({
   diya: { ok: false, p: new THREE.Vector3(), q: new THREE.Quaternion() },
   stream: { ok: false, p: new THREE.Vector3(), len: 0 },
   lotaTilt: 0,
+  debug: {},
 });
 
 const get = (root: THREE.Object3D, ...names: string[]) => {
@@ -282,7 +288,10 @@ function wrapChain(chain: THREE.Object3D[], hinge: THREE.Vector3, sdf: Sdf, rads
     const r = rads[Math.min(j, rads.length - 1)];
     W.q0.copy(b.quaternion);
     setBend(b, W.q0, hinge, lo);
-    if (touches(chain, j, sdf, r)) continue;
+    if (touches(chain, j, sdf, r)) {
+      setBend(b, W.q0, hinge, 0); // inside the prop at every angle: keep the clip's pose
+      continue;
+    }
     setBend(b, W.q0, hinge, hi);
     if (!touches(chain, j, sdf, r)) {
       setBend(b, W.q0, hinge, 0);
@@ -326,6 +335,17 @@ function wrapHand(h: Hand, M: THREE.Matrix4, sdf: Sdf) {
 }
 
 const propM = new THREE.Matrix4();
+const dbgV = new THREE.Vector3();
+const dbgY = new THREE.Vector3();
+/** Record palm-to-prop distance and palm direction for `key` (propM must be the prop's matrix). */
+function measure(state: GripState, key: string, h: Hand, sdf: Sdf) {
+  if (!frame(h, W.f, W.n, W.a, false)) return;
+  W.Mi.copy(propM).invert();
+  h.grip.getWorldPosition(dbgV).addScaledVector(W.n, PALM);
+  state.debug[`${key}.palm`] = +sdf(dbgV.applyMatrix4(W.Mi)).toFixed(3);
+  dbgY.setFromMatrixColumn(propM, 1).normalize();
+  state.debug[`${key}.up`] = +W.n.dot(dbgY).toFixed(2);
+}
 const setPropMatrix = (o: THREE.Vector3, x: THREE.Vector3, y: THREE.Vector3, z: THREE.Vector3) => propM.makeBasis(x, y, z).setPosition(o);
 
 /** World placement (o, basis x y z) → root-local Frame. */
@@ -397,6 +417,8 @@ export function applyGrips(
       // fingers lie flat against the underside (and curl up round the edge where they pass it)
       wrapHand(hands.l, propM, soopSdf);
       wrapHand(hands.r, propM, soopSdf);
+      measure(state, "soop.l", hands.l, soopSdf);
+      measure(state, "soop.r", hands.r, soopSdf);
       toLocal(root, state.soop, o, x, y, z);
     }
   }
@@ -426,6 +448,7 @@ export function applyGrips(
     // fingers and thumb close round the neck until they touch it
     setPropMatrix(o, x, y, z);
     wrapHand(h, propM, lotaSdf);
+    measure(state, "lota.r", h, lotaSdf);
 
     if (s.pose === "pour") {
       // other palm under the base, fingers forward
@@ -470,7 +493,10 @@ export function applyGrips(
           const tgt = new THREE.Vector3().copy(o).addScaledVector(y, hgt).addScaledVector(out, dauraRadius(hgt) + PALM);
           // fingers up the wall (tilted with its flare), palm facing the basket
           const fw = new THREE.Vector3().copy(y).addScaledVector(out, (DAURA_R1 - DAURA_R0) / DAURA_H);
-          if (unit(fw) && placeHand(h, tgt, fw, out.negate())) wrapHand(h, propM, dauraSdf);
+          if (unit(fw) && placeHand(h, tgt, fw, out.negate())) {
+            wrapHand(h, propM, dauraSdf);
+            measure(state, sgn > 0 ? "daura.l" : "daura.r", h, dauraSdf);
+          }
         }
       }
     }
@@ -502,6 +528,7 @@ export function applyGrips(
       toLocal(root, state.diya, o, x, y, z);
       setPropMatrix(o, x, y, z);
       wrapHand(h, propM, diyaSdf); // fingers cup round the bowl
+      measure(state, "diya.r", h, diyaSdf);
     }
   }
 }

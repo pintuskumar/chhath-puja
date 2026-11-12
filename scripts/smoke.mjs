@@ -259,7 +259,7 @@ for (const [vpName, viewport] of [
       const g2 = await gs.page.evaluate((w) => window.__grips?.[w], who).catch(() => null);
       const fps = g2 ? g2.n - n0 : "?";
       const bad = g2 && [...g2.l, ...g2.r].some((v) => !Number.isFinite(v));
-      console.log(`grip ${who}: hold=${g.hold} pose=${g.pose} stream=${g.stream} fps≈${fps} hands L${JSON.stringify(g.l)} R${JSON.stringify(g.r)}`);
+      console.log(`grip ${who}: hold=${g.hold} pose=${g.pose} stream=${g.stream} fps≈${fps} contact ${JSON.stringify(g2?.contact ?? g.contact)}`);
       if (bad) errors.push(`[grip] ${who}: non-finite hand position`);
       // software WebGL renders these close-ups at ~0–8 fps; a 0 here is slowness, not a hang
       if (fps === 0) console.log(`grip ${who}: no new frame within 1 s (software WebGL)`);
@@ -288,11 +288,15 @@ for (const [vpName, viewport] of [
         await gs.page.goto(`${BASE}/day/sandhya-arghya/#${hash}`, { waitUntil: "networkidle", timeout: 90000 });
         await gs.page.reload({ waitUntil: "networkidle", timeout: 90000 });
         await gs.page.addStyleTag({ content: "header,[data-reveal],[role=toolbar],[data-testid=photo-credit]{visibility:hidden!important}" });
-        await wait(6000);
+        await wait(2500);
       };
-      await openScene("ghat-ki-or"); // the man carries the daura on his head
-      await frame("man", "grip-daura", { dist: 0.9, side: 0.4, up: 0.05 });
-      await openScene("ghat-par-taiyari"); // the elder offers a diya
+      // ghat-par-taiyari: the man stands with the daura on his head (early in the scene), the elder offers a diya
+      await openScene("ghat-par-taiyari");
+      // the daura is on his head for the first ~3.6 s of the 12 s scene: restart it
+      await gs.page.evaluate(() =>
+        [...document.querySelectorAll('[role="toolbar"] button')].find((e) => e.getAttribute("aria-label") === "दोबारा देखें")?.click(),
+      );
+      await frame("man", "grip-daura", { dist: 1.0, side: 0.35, up: 0.05, pose: "carry-head" });
       await frame("elder", "grip-diya-offer", { dist: 0.45, side: 0.25, up: 0.12 });
       await openScene("sandhya-samapan"); // the child holds a diya
       await frame("child", "grip-diya-child", { dist: 0.45, side: 0.2, up: 0.12 });
