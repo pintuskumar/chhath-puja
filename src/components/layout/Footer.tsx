@@ -53,7 +53,7 @@ export function Footer() {
             rel="noopener noreferrer author"
             className="font-semibold text-gold underline-offset-4 hover:underline"
           >
-            pintu544
+            Pintu Kumar
           </a>
         </p>
       </div>
